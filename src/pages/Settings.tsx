@@ -23,6 +23,9 @@ export default function Settings() {
       professionalInitials: formData.get('professionalInitials') as string,
       specialty: formData.get('specialty') as string,
       defaultSessionValue: parseFloat(formData.get('defaultSessionValue') as string) || 150,
+      whatsapp: formData.get('whatsapp') as string,
+      email: formData.get('email') as string,
+      bio: formData.get('bio') as string,
     });
     
     toast.success('Configurações salvas com sucesso');
@@ -101,6 +104,35 @@ export default function Settings() {
                 maxLength={2}
                 required 
                 className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" 
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">WhatsApp de Contato</label>
+              <input 
+                name="whatsapp" 
+                defaultValue={settings.whatsapp} 
+                placeholder="(11) 99999-9999"
+                className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" 
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">E-mail de Contato</label>
+              <input 
+                name="email" 
+                type="email"
+                defaultValue={settings.email} 
+                placeholder="contato@exemplo.com"
+                className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" 
+              />
+            </div>
+            <div className="col-span-full space-y-1">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Biografia Profissional (para o Site)</label>
+              <textarea 
+                name="bio" 
+                defaultValue={settings.bio} 
+                rows={4}
+                placeholder="Conte um pouco sobre sua trajetória e abordagem..."
+                className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white resize-none" 
               />
             </div>
           </div>

@@ -153,8 +153,8 @@ service cloud.firestore {
     }
 
     match /settings/{userId} {
-      allow read: if (isOwner(userId) && isAuthorized()) || isAdmin();
-      allow write: if (isOwner(userId) && isAuthorized()) || isAdmin();
+      allow read: if userId == 'clinic_settings' || (isOwner(userId) && isAuthorized()) || isAdmin();
+      allow write: if (userId == 'clinic_settings' && isAdmin()) || (isOwner(userId) && isAuthorized()) || isAdmin();
     }
 
     match /users/{userId} {
@@ -172,6 +172,11 @@ service cloud.firestore {
 
     match /invitations/{email} {
       allow read, delete: if isAuthenticated() && request.auth.token.email.lower() == email.lower();
+      allow write: if isAdmin();
+    }
+
+    match /posts/{postId} {
+      allow read: if resource.data.status == 'published' || isAdmin();
       allow write: if isAdmin();
     }
   }

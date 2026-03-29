@@ -68,6 +68,27 @@ export interface ClinicSettings {
   professionalInitials: string;
   specialty: string;
   defaultSessionValue: number;
+  whatsapp?: string;
+  email?: string;
+  bio?: string;
+  geminiKeys?: string[];
+}
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  content: string;
+  excerpt: string;
+  imageUrl: string;
+  category: string;
+  tags: string[];
+  publishedAt?: string;
+  scheduledAt?: string;
+  authorId: string;
+  authorName: string;
+  status: 'draft' | 'published' | 'scheduled';
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface UserProfile {

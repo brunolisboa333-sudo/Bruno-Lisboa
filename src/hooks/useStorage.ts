@@ -21,7 +21,7 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { db, auth } from '../firebase';
-import { Patient, Appointment, SessionRecord, Expense, ClinicSettings, UserProfile, PendingInvitation } from '../types';
+import { Patient, Appointment, SessionRecord, Expense, ClinicSettings, UserProfile, PendingInvitation, BlogPost } from '../types';
 import { toast } from 'sonner';
 
 enum OperationType {
@@ -85,20 +85,35 @@ export function useStorage() {
   const [records, setRecords] = useState<SessionRecord[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [settings, setSettings] = useState<ClinicSettings>({
-    clinicName: 'Clínica de Psicanálise',
+    clinicName: 'Clínica de Psicanálise & Neuropsicanálise',
     professionalName: 'Bruno Lisboa',
     professionalInitials: 'BL',
-    specialty: 'Psicanalista',
-    defaultSessionValue: 150
+    specialty: 'Neuropsicanálise & Psicanálise Clínica',
+    defaultSessionValue: 150,
+    whatsapp: '31 999215840',
+    email: 'brunolisboa333@gmail.com',
+    geminiKeys: []
   });
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let unsubscribeProfile: (() => void) | null = null;
+
+    // Listen to settings (publicly readable)
+    const settingsDoc = doc(db, 'settings', 'clinic_settings');
+    const unsubscribeSettings = onSnapshot(settingsDoc, (snapshot) => {
+      if (snapshot.exists()) {
+        setSettings(snapshot.data() as ClinicSettings);
+      }
+    }, (error) => {
+      // If it fails (e.g. doesn't exist yet), we just keep the defaults
+      console.log("Settings not found or access denied, using defaults");
+    });
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       console.log("Auth state changed:", currentUser?.email, currentUser?.uid);
@@ -223,13 +238,6 @@ export function useStorage() {
       setExpenses(snapshot.docs.map(doc => doc.data() as Expense));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'expenses'));
 
-    const settingsDoc = doc(db, 'settings', userId);
-    const unsubscribeSettings = onSnapshot(settingsDoc, (snapshot) => {
-      if (snapshot.exists()) {
-        setSettings(snapshot.data() as ClinicSettings);
-      }
-    }, (error) => handleFirestoreError(error, OperationType.GET, `settings/${userId}`));
-
     // If admin, fetch all users
     let unsubscribeAllUsers = () => {};
     if (userProfile.role === 'admin') {
@@ -239,13 +247,25 @@ export function useStorage() {
       }, (error) => handleFirestoreError(error, OperationType.LIST, 'users'));
     }
 
+    // Listen to posts
+    const postsUnsubscribe = onSnapshot(collection(db, 'posts'), (snapshot) => {
+      const postsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as BlogPost[];
+      setPosts(postsData.sort((a, b) => {
+        const dateA = new Date(a.publishedAt || a.createdAt || 0).getTime();
+        const dateB = new Date(b.publishedAt || b.createdAt || 0).getTime();
+        return dateB - dateA;
+      }));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'posts');
+    });
+
     return () => {
       unsubscribePatients();
       unsubscribeAppointments();
       unsubscribeRecords();
       unsubscribeExpenses();
-      unsubscribeSettings();
       unsubscribeAllUsers();
+      postsUnsubscribe();
     };
   }, [user, userProfile]);
 
@@ -340,11 +360,31 @@ export function useStorage() {
   };
 
   const saveSettings = async (newSettings: ClinicSettings) => {
-    if (!user) return;
+    if (!user || userProfile?.role !== 'admin') {
+      toast.error('Apenas administradores podem alterar as configurações');
+      return;
+    }
     try {
-      await setDoc(doc(db, 'settings', user.uid), cleanData(newSettings));
+      await setDoc(doc(db, 'settings', 'clinic_settings'), cleanData(newSettings));
+      toast.success('Configurações salvas com sucesso');
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `settings/${user.uid}`);
+      handleFirestoreError(error, OperationType.WRITE, 'settings/clinic_settings');
+    }
+  };
+
+  const savePost = async (post: BlogPost) => {
+    try {
+      await setDoc(doc(db, 'posts', post.id), cleanData(post));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `posts/${post.id}`);
+    }
+  };
+
+  const deletePost = async (postId: string) => {
+    try {
+      await deleteDoc(doc(db, 'posts', postId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `posts/${postId}`);
     }
   };
 
@@ -394,6 +434,11 @@ export function useStorage() {
       await signInWithPopup(auth, provider);
     } catch (error: any) {
       console.error("Login failed:", error.code, error.message);
+      if (error.code === 'auth/unauthorized-domain') {
+        toast.error('Domínio não autorizado. Por favor, adicione este domínio no Console do Firebase.');
+      } else {
+        toast.error('Falha no login com Google. Tente novamente.');
+      }
       throw error;
     }
   };
@@ -401,8 +446,15 @@ export function useStorage() {
   const loginWithEmail = async (email: string, pass: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Email login failed:", error);
+      if (error.code === 'auth/operation-not-allowed') {
+        toast.error('O login por e-mail não está ativado no Console do Firebase.');
+      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        toast.error('E-mail ou senha incorretos.');
+      } else {
+        toast.error('Erro ao entrar. Verifique suas credenciais.');
+      }
       throw error;
     }
   };
@@ -416,6 +468,13 @@ export function useStorage() {
       toast.success('Cadastro realizado! Verifique seu e-mail para validar sua conta.');
     } catch (error: any) {
       console.error("Registration failed:", error);
+      if (error.code === 'auth/email-already-in-use') {
+        toast.error('Este e-mail já está em uso. Tente fazer login.');
+      } else if (error.code === 'auth/weak-password') {
+        toast.error('A senha deve ter pelo menos 6 caracteres.');
+      } else {
+        toast.error('Erro ao realizar cadastro.');
+      }
       throw error;
     }
   };
@@ -472,6 +531,7 @@ export function useStorage() {
     records,
     expenses,
     settings,
+    posts,
     user,
     userProfile,
     allUsers,
@@ -486,6 +546,8 @@ export function useStorage() {
     addExpense,
     updateExpense,
     saveSettings,
+    savePost,
+    deletePost,
     deletePatient,
     deleteAppointment,
     deleteRecord,
@@ -496,6 +558,8 @@ export function useStorage() {
     loginWithEmail,
     registerWithEmail,
     logout,
-    hasPermission
+    hasPermission,
+    isAdmin: userProfile?.role === 'admin',
+    isAuthorized: userProfile?.status === 'authorized'
   };
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Lock, Mail, ChevronRight, AlertCircle, User, ArrowLeft } from 'lucide-react';
 import { useStorage } from '../hooks/useStorage';
@@ -19,7 +19,7 @@ export default function Login() {
     try {
       await login();
       toast.success('Login realizado com sucesso!');
-      navigate('/');
+      navigate('/dashboard');
     } catch (error: any) {
       console.error("Google Login error:", error);
       let msg = 'Erro ao entrar com Google.';
@@ -53,7 +53,7 @@ export default function Login() {
       } else {
         await loginWithEmail(email, password);
         toast.success('Login realizado com sucesso!');
-        navigate('/');
+        navigate('/dashboard');
       }
     } catch (error: any) {
       console.error("Login/Registration error:", error);
@@ -86,6 +86,12 @@ export default function Login() {
         className="w-full max-w-md"
       >
         <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 p-8">
+          <div className="mb-6">
+            <Link to="/" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-emerald-600 transition-colors group">
+              <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+              Voltar ao Site
+            </Link>
+          </div>
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center text-white text-3xl font-bold mb-4 shadow-lg shadow-emerald-200 dark:shadow-none">
               Ψ

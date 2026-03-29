@@ -21,7 +21,11 @@ import {
   Sun,
   LogOut,
   Clock,
-  Mail
+  Mail,
+  Brain,
+  Globe,
+  BookOpen,
+  ShieldCheck
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -37,6 +41,10 @@ import Confirmations from './pages/Confirmations';
 import SettingsPage from './pages/Settings';
 import UsersPage from './pages/Users';
 import Login from './pages/Login';
+import LandingPage from './pages/LandingPage';
+import AIBrain from './pages/AIBrain';
+import Blog from './pages/Blog';
+import BlogPostDetail from './pages/BlogPostDetail';
 import { useStorage } from './hooks/useStorage';
 import { Navigate } from 'react-router-dom';
 import { Component, ErrorInfo, ReactNode } from 'react';
@@ -97,12 +105,15 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 }
 
 const NAV_ITEMS = [
-  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/agenda', icon: Calendar, label: 'Agenda', permission: 'view_agenda' },
   { path: '/confirmations', icon: MessageCircle, label: 'Pendências', permission: 'view_confirmations' },
   { path: '/patients', icon: Users, label: 'Pacientes', permission: 'view_patients' },
   { path: '/finance', icon: Wallet, label: 'Financeiro', permission: 'view_finance' },
   { path: '/records', icon: FileText, label: 'Prontuários', permission: 'view_records' },
+  { path: '/aibrain', icon: Brain, label: 'Cérebro de IA', permission: 'admin' },
+  { path: '/users', icon: ShieldCheck, label: 'Usuários', permission: 'admin' },
+  { path: '/blog', icon: BookOpen, label: 'Ver Blog' },
 ];
 
 function Sidebar({ isOpen, setIsOpen, darkMode, setDarkMode }: { 
@@ -116,17 +127,17 @@ function Sidebar({ isOpen, setIsOpen, darkMode, setDarkMode }: {
 
   const { settings, logout, userProfile, hasPermission } = useStorage();
 
+  const navItems = NAV_ITEMS.filter(item => {
+    if (!item.permission) return true;
+    if (item.permission === 'admin') return userProfile?.role === 'admin';
+    return hasPermission(item.permission);
+  });
+
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
-
-  const navItems = NAV_ITEMS.filter(item => !item.permission || hasPermission(item.permission));
   
-  if (userProfile?.role === 'admin') {
-    navItems.push({ path: '/users', icon: Users, label: 'Equipe' });
-  }
-
   return (
     <>
       {/* Mobile Backdrop */}
@@ -146,8 +157,8 @@ function Sidebar({ isOpen, setIsOpen, darkMode, setDarkMode }: {
         "fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-auto",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="h-full flex flex-col">
-          <div className="p-6 flex items-center justify-between">
+        <div className="h-full flex flex-col overflow-y-auto custom-scrollbar">
+          <div className="p-6 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold">
                 Ψ
@@ -160,6 +171,15 @@ function Sidebar({ isOpen, setIsOpen, darkMode, setDarkMode }: {
           </div>
 
           <nav className="flex-1 px-4 space-y-1">
+            <Link
+              to="/"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-3 py-2.5 mb-4 rounded-xl transition-all duration-200 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold hover:bg-slate-200 dark:hover:bg-slate-700 group border border-slate-200 dark:border-slate-700"
+            >
+              <Globe size={20} className="text-emerald-600 dark:text-emerald-400" />
+              Voltar ao Site
+            </Link>
+
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;
               return (
@@ -184,7 +204,7 @@ function Sidebar({ isOpen, setIsOpen, darkMode, setDarkMode }: {
             })}
           </nav>
 
-          <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
+          <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-4 shrink-0">
             <button 
               onClick={() => setDarkMode(!darkMode)}
               className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-400"
@@ -212,9 +232,11 @@ function Sidebar({ isOpen, setIsOpen, darkMode, setDarkMode }: {
                 <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{settings.professionalName}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{settings.specialty}</p>
               </div>
-              <Link to="/settings">
-                <Settings size={18} className="text-slate-400 cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" />
-              </Link>
+              {userProfile?.role === 'admin' && (
+                <Link to="/settings">
+                  <Settings size={18} className="text-slate-400 cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" />
+                </Link>
+              )}
             </div>
 
             <button 
@@ -239,6 +261,7 @@ function AppContent() {
     return saved ? JSON.parse(saved) : false;
   });
   const location = useLocation();
+  const isLandingPage = location.pathname === '/';
 
   useEffect(() => {
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
@@ -356,7 +379,7 @@ function AppContent() {
       "flex h-screen font-sans overflow-hidden transition-colors duration-300",
       darkMode ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"
     )}>
-      {user && (
+      {user && !isLandingPage && (
         <Sidebar 
           isOpen={isSidebarOpen} 
           setIsOpen={setIsSidebarOpen} 
@@ -366,45 +389,66 @@ function AppContent() {
       )}
       
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {user && (
+        {user && !isLandingPage && (
           <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 lg:hidden">
             <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
               <Menu size={20} />
             </button>
             <span className="font-semibold text-slate-900 dark:text-white">{settings.clinicName}</span>
-            <div className="w-9" /> {/* Spacer */}
+            <div className="flex items-center gap-1">
+              <Link to="/blog" className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+                <BookOpen size={20} />
+              </Link>
+              <Link to="/" className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+                <Globe size={20} />
+              </Link>
+              <button 
+                onClick={() => logout()}
+                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                title="Sair"
+              >
+                <LogOut size={20} />
+              </button>
+            </div>
           </header>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+        <div className={cn(
+          "flex-1 overflow-y-auto",
+          isLandingPage ? "p-0" : "p-4 lg:p-8"
+        )}>
           <AnimatePresence mode="wait">
             <Routes location={location} key={location.pathname}>
+              <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/" element={user ? <Dashboard /> : <Navigate to="/login" />} />
+              <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
               
               <Route 
                 path="/patients" 
-                element={user && hasPermission('view_patients') ? <Patients /> : <Navigate to="/" />} 
+                element={user && hasPermission('view_patients') ? <Patients /> : <Navigate to="/dashboard" />} 
               />
               <Route 
                 path="/agenda" 
-                element={user && hasPermission('view_agenda') ? <Agenda /> : <Navigate to="/" />} 
+                element={user && hasPermission('view_agenda') ? <Agenda /> : <Navigate to="/dashboard" />} 
               />
               <Route 
                 path="/finance" 
-                element={user && hasPermission('view_finance') ? <Finance /> : <Navigate to="/" />} 
+                element={user && hasPermission('view_finance') ? <Finance /> : <Navigate to="/dashboard" />} 
               />
               <Route 
                 path="/records" 
-                element={user && hasPermission('view_records') ? <Records /> : <Navigate to="/" />} 
+                element={user && hasPermission('view_records') ? <Records /> : <Navigate to="/dashboard" />} 
               />
               <Route 
                 path="/confirmations" 
-                element={user && hasPermission('view_confirmations') ? <Confirmations /> : <Navigate to="/" />} 
+                element={user && hasPermission('view_confirmations') ? <Confirmations /> : <Navigate to="/dashboard" />} 
               />
               
-              <Route path="/settings" element={user ? <SettingsPage /> : <Navigate to="/login" />} />
-              <Route path="/users" element={user && userProfile?.role === 'admin' ? <UsersPage /> : <Navigate to="/" />} />
+              <Route path="/settings" element={user && userProfile?.role === 'admin' ? <SettingsPage /> : <Navigate to="/dashboard" />} />
+              <Route path="/users" element={user && userProfile?.role === 'admin' ? <UsersPage /> : <Navigate to="/dashboard" />} />
+              <Route path="/aibrain" element={user && userProfile?.role === 'admin' ? <AIBrain /> : <Navigate to="/dashboard" />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:id" element={<BlogPostDetail />} />
             </Routes>
           </AnimatePresence>
         </div>
