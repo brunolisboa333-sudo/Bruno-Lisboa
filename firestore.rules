@@ -60,16 +60,16 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && 
         (
-          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-          (request.auth.token.email == "brunolisboa333@gmail.com")
+          (request.auth.token.email == "brunolisboa333@gmail.com") ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
         );
     }
 
     function isAuthorized() {
       return isAuthenticated() && 
         (
-          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'authorized') ||
-          (request.auth.token.email == "brunolisboa333@gmail.com")
+          (request.auth.token.email == "brunolisboa333@gmail.com") ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'authorized')
         );
     }
 

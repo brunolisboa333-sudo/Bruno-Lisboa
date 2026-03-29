@@ -16,7 +16,8 @@ import {
   User,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  sendEmailVerification
+  sendEmailVerification,
+  updateProfile
 } from 'firebase/auth';
 import { db, auth } from '../firebase';
 import { Patient, Appointment, SessionRecord, Expense, ClinicSettings, UserProfile } from '../types';
@@ -99,6 +100,7 @@ export function useStorage() {
     let unsubscribeProfile: (() => void) | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      console.log("Auth state changed:", currentUser?.email, currentUser?.uid);
       setUser(currentUser);
       
       // Cleanup previous profile listener if it exists
@@ -117,9 +119,11 @@ export function useStorage() {
       const userRef = doc(db, 'users', currentUser.uid);
       unsubscribeProfile = onSnapshot(userRef, async (snapshot) => {
         if (snapshot.exists()) {
+          console.log("Profile found:", snapshot.data());
           setUserProfile(snapshot.data() as UserProfile);
           setLoading(false);
         } else {
+          console.log("Profile not found, creating...");
           // Create initial profile
           try {
             const isAdmin = currentUser.email === 'brunolisboa333@gmail.com';
@@ -132,19 +136,18 @@ export function useStorage() {
               status: isAdmin ? 'authorized' : 'pending',
               createdAt: new Date().toISOString()
             };
+            console.log("Creating profile with data:", newProfile);
             await setDoc(userRef, cleanData(newProfile));
-            // Snapshot listener will fire again, but let's be safe
-            setUserProfile(newProfile);
-            setLoading(false);
-          } catch (err) {
+            console.log("Profile created successfully");
+            // Snapshot listener will fire again
+          } catch (err: any) {
             console.error("Error creating user profile:", err);
-            setError("Erro ao criar perfil de usuário. Verifique as permissões.");
+            setError(`Erro ao criar perfil: ${err.message}`);
             setLoading(false);
           }
         }
       }, (err) => {
         console.error("Profile listener error:", err);
-        // We don't throw here to avoid crashing the app, but we log it for the system
         const errInfo = {
           error: err.message,
           operationType: OperationType.GET,
@@ -152,7 +155,14 @@ export function useStorage() {
           authInfo: { userId: currentUser.uid, email: currentUser.email }
         };
         console.error('Firestore Error: ', JSON.stringify(errInfo));
-        setError("Erro de permissão ao acessar perfil de usuário.");
+        
+        if (err.message.includes('permission-denied')) {
+          setError("Erro de permissão ao acessar seu perfil. Verifique as regras do Firestore.");
+        } else if (err.message.includes('offline')) {
+          setError("Erro de conexão: O cliente está offline ou a configuração do Firebase está incorreta.");
+        } else {
+          setError(`Erro ao carregar perfil: ${err.message}`);
+        }
         setLoading(false);
       });
     });
@@ -365,8 +375,8 @@ export function useStorage() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Login failed:", error);
+    } catch (error: any) {
+      console.error("Login failed:", error.code, error.message);
       throw error;
     }
   };
@@ -383,23 +393,11 @@ export function useStorage() {
   const registerWithEmail = async (email: string, pass: string, name: string) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+      // Update display name in auth profile so onAuthStateChanged picks it up
+      await updateProfile(userCredential.user, { displayName: name });
       await sendEmailVerification(userCredential.user);
-      
-      // Create initial profile immediately to ensure name is saved
-      const userRef = doc(db, 'users', userCredential.user.uid);
-      const isAdmin = email === 'brunolisboa333@gmail.com';
-      const newProfile: UserProfile = {
-        uid: userCredential.user.uid,
-        email: email,
-        displayName: name,
-        role: isAdmin ? 'admin' : 'member',
-        status: isAdmin ? 'authorized' : 'pending',
-        createdAt: new Date().toISOString()
-      };
-      await setDoc(userRef, cleanData(newProfile));
-      
       toast.success('Cadastro realizado! Verifique seu e-mail para validar sua conta.');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration failed:", error);
       throw error;
     }
@@ -408,6 +406,7 @@ export function useStorage() {
   const logout = async () => {
     try {
       await signOut(auth);
+      setError(null);
     } catch (error) {
       console.error("Logout failed:", error);
     }

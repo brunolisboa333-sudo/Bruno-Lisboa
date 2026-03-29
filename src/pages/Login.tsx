@@ -21,8 +21,16 @@ export default function Login() {
       toast.success('Login realizado com sucesso!');
       navigate('/');
     } catch (error: any) {
-      console.error(error);
-      toast.error('Erro ao entrar com Google.');
+      console.error("Google Login error:", error);
+      let msg = 'Erro ao entrar com Google.';
+      if (error.code === 'auth/popup-blocked') msg = 'O popup foi bloqueado pelo navegador. Verifique as configurações de popups.';
+      else if (error.code === 'auth/popup-closed-by-user') msg = 'O login foi cancelado. Verifique se a janela foi fechada ou se cookies de terceiros estão bloqueados.';
+      else if (error.code === 'auth/cancelled-popup-request') msg = 'A solicitação de login foi cancelada.';
+      else if (error.code === 'auth/unauthorized-domain') msg = 'Este domínio não está autorizado no Firebase.';
+      else if (error.code === 'auth/network-request-failed') msg = 'Erro de rede. Verifique sua conexão.';
+      else if (error.code === 'auth/internal-error') msg = 'Erro interno do Firebase. Tente novamente mais tarde.';
+      else if (error.message) msg = `Erro: ${error.message}`;
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -46,12 +54,20 @@ export default function Login() {
         navigate('/');
       }
     } catch (error: any) {
-      console.error(error);
+      console.error("Login/Registration error:", error);
       let msg = 'Ocorreu um erro.';
       if (error.code === 'auth/user-not-found') msg = 'Usuário não encontrado.';
-      if (error.code === 'auth/wrong-password') msg = 'Senha incorreta.';
-      if (error.code === 'auth/email-already-in-use') msg = 'E-mail já cadastrado.';
-      if (error.code === 'auth/weak-password') msg = 'Senha muito fraca.';
+      else if (error.code === 'auth/wrong-password') msg = 'Senha incorreta.';
+      else if (error.code === 'auth/email-already-in-use') msg = 'E-mail já cadastrado.';
+      else if (error.code === 'auth/weak-password') msg = 'Senha muito fraca.';
+      else if (error.code === 'auth/invalid-email') msg = 'E-mail inválido.';
+      else if (error.code === 'auth/popup-blocked') msg = 'O popup foi bloqueado pelo navegador. Verifique as configurações de popups.';
+      else if (error.code === 'auth/popup-closed-by-user') msg = 'O login foi cancelado. Verifique se a janela foi fechada ou se cookies de terceiros estão bloqueados.';
+      else if (error.code === 'auth/unauthorized-domain') msg = 'Este domínio não está autorizado no Firebase.';
+      else if (error.code === 'auth/network-request-failed') msg = 'Erro de rede. Verifique sua conexão.';
+      else if (error.code === 'auth/internal-error') msg = 'Erro interno do Firebase. Tente novamente mais tarde.';
+      else if (error.message) msg = `Erro: ${error.message}`;
+      
       toast.error(msg);
     } finally {
       setIsLoading(false);

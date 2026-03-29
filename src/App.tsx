@@ -257,6 +257,7 @@ function AppContent() {
   }
 
   if (error) {
+    console.error("App error state:", error);
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
         <div className="max-w-md w-full bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-xl text-center space-y-6 border border-red-100 dark:border-red-900/30">
@@ -288,7 +289,9 @@ function AppContent() {
     );
   }
 
-  if (user && !user.emailVerified) {
+  const isAdminEmail = user?.email === 'brunolisboa333@gmail.com';
+
+  if (user && !user.emailVerified && !isAdminEmail) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
         <div className="max-w-md w-full bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-xl text-center space-y-6">
