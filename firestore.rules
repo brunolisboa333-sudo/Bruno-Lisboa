@@ -1,0 +1,170 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: patients
+    // Document ID: random string
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required, min 2, max 100)
+    //   - phone: string (required, format validation)
+    //   - email: string (optional, email validation)
+    //   - birthDate: string (optional, format DD/MM/AAAA)
+    //   - gender: string (optional)
+    //   - notes: string (optional, max 5000)
+    //   - initialHistory: string (optional, max 10000)
+    //   - defaultSessionValue: number (optional, positive)
+    //   - totalPaid: number (optional, positive)
+    //   - userId: string (required, matches auth.uid)
+    //
+    // Collection: appointments
+    // Document ID: random string
+    // Fields:
+    //   - id: string (required)
+    //   - patientId: string (required)
+    //   - patientName: string (required)
+    //   - dateTime: string (required, ISO 8601)
+    //   - type: string (required, 'online' | 'presencial')
+    //   - status: string (required, 'scheduled' | 'completed' | 'cancelled' | 'pending_payment')
+    //   - isConfirmed: bool (required)
+    //   - price: number (required, positive)
+    //   - userId: string (required, matches auth.uid)
+    //
+    // [Other collections follow similar patterns]
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isNewDocOwner() {
+      return isAuthenticated() && request.auth.uid == request.resource.data.userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email == "brunolisboa333@gmail.com" && request.auth.token.email_verified == true)
+        );
+    }
+
+    function isAuthorized() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'authorized';
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidPatient(data) {
+      return hasRequiredFields(['id', 'name', 'phone', 'userId']) &&
+             data.id is string &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+             data.phone is string && data.phone.size() >= 8 && data.phone.size() <= 20 &&
+             (!('email' in data) || data.email == "" || isValidEmail(data.email)) &&
+             data.userId is string;
+    }
+
+    function isValidAppointment(data) {
+      return hasRequiredFields(['id', 'patientId', 'dateTime', 'userId', 'type', 'status', 'price']) &&
+             data.id is string &&
+             data.patientId is string &&
+             isValidDateString(data.dateTime) &&
+             data.type in ['online', 'presencial'] &&
+             data.status in ['scheduled', 'completed', 'cancelled', 'pending_payment'] &&
+             data.price is number && data.price >= 0 &&
+             data.userId is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /patients/{patientId} {
+      allow read: if (isDocOwner() && isAuthorized()) || isAdmin();
+      allow create: if (isNewDocOwner() && isAuthorized() && isValidPatient(request.resource.data)) || isAdmin();
+      allow update: if (isDocOwner() && isAuthorized() && isValidPatient(request.resource.data) && 
+                      request.resource.data.userId == resource.data.userId) || isAdmin();
+      allow delete: if (isDocOwner() && isAuthorized()) || isAdmin();
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if (isDocOwner() && isAuthorized()) || isAdmin();
+      allow create: if (isNewDocOwner() && isAuthorized() && isValidAppointment(request.resource.data)) || isAdmin();
+      allow update: if (isDocOwner() && isAuthorized() && isValidAppointment(request.resource.data) && 
+                      request.resource.data.userId == resource.data.userId) || isAdmin();
+      allow delete: if (isDocOwner() && isAuthorized()) || isAdmin();
+    }
+
+    match /records/{recordId} {
+      allow read: if (isDocOwner() && isAuthorized()) || isAdmin();
+      allow create: if (isNewDocOwner() && isAuthorized() && hasRequiredFields(['id', 'patientId', 'appointmentId', 'userId'])) || isAdmin();
+      allow update: if (isDocOwner() && isAuthorized() && request.resource.data.userId == resource.data.userId) || isAdmin();
+      allow delete: if (isDocOwner() && isAuthorized()) || isAdmin();
+    }
+
+    match /expenses/{expenseId} {
+      allow read: if (isDocOwner() && isAuthorized()) || isAdmin();
+      allow create: if (isNewDocOwner() && isAuthorized() && hasRequiredFields(['id', 'description', 'value', 'date', 'userId'])) || isAdmin();
+      allow update: if (isDocOwner() && isAuthorized() && request.resource.data.userId == resource.data.userId) || isAdmin();
+      allow delete: if (isDocOwner() && isAuthorized()) || isAdmin();
+    }
+
+    match /settings/{userId} {
+      allow read: if (isOwner(userId) && isAuthorized()) || isAdmin();
+      allow write: if (isOwner(userId) && isAuthorized()) || isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && (
+                      (request.resource.data.role == 'member' && request.resource.data.status == 'pending') ||
+                      (request.auth.token.email == "brunolisboa333@gmail.com" && request.auth.token.email_verified == true && request.resource.data.role == 'admin' && request.resource.data.status == 'authorized')
+                    );
+      allow update: if isAdmin() || (isOwner(userId) && 
+                                     request.resource.data.role == resource.data.role && 
+                                     request.resource.data.status == resource.data.status);
+      allow delete: if isAdmin();
+    }
+  }
+}

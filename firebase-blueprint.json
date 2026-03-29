@@ -1,0 +1,112 @@
+{
+  "entities": {
+    "Patient": {
+      "title": "Patient",
+      "description": "Patient information and clinical history",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "birthDate": { "type": "string" },
+        "gender": { "type": "string" },
+        "notes": { "type": "string" },
+        "initialHistory": { "type": "string" },
+        "defaultSessionValue": { "type": "number" },
+        "totalPaid": { "type": "number" },
+        "guardianName": { "type": "string" },
+        "guardianContact": { "type": "string" },
+        "medications": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "name", "phone", "userId"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Scheduled session for a patient",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "patientId": { "type": "string" },
+        "patientName": { "type": "string" },
+        "dateTime": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["online", "presencial"] },
+        "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled", "pending_payment"] },
+        "isConfirmed": { "type": "boolean" },
+        "price": { "type": "number" },
+        "notes": { "type": "string" },
+        "userId": { "type": "string" },
+        "recurrence": { "type": "string", "enum": ["none", "weekly", "biweekly"] },
+        "seriesId": { "type": "string" }
+      },
+      "required": ["id", "patientId", "dateTime", "userId"]
+    },
+    "SessionRecord": {
+      "title": "SessionRecord",
+      "description": "Clinical record of a therapy session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "patientId": { "type": "string" },
+        "appointmentId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "clinicalNotes": { "type": "string" },
+        "evolution": { "type": "string" },
+        "sessionValue": { "type": "number" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "patientId", "appointmentId", "userId"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Clinic financial expense",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "value": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "category": { "type": "string", "enum": ["aluguel", "marketing", "supervisao", "outros"] },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "description", "value", "date", "userId"]
+    },
+    "ClinicSettings": {
+      "title": "ClinicSettings",
+      "description": "General settings for the clinic",
+      "type": "object",
+      "properties": {
+        "clinicName": { "type": "string" },
+        "professionalName": { "type": "string" },
+        "professionalInitials": { "type": "string" },
+        "specialty": { "type": "string" },
+        "defaultSessionValue": { "type": "number" }
+      }
+    }
+  },
+  "firestore": {
+    "/patients/{patientId}": {
+      "schema": "Patient",
+      "description": "Collection of patient data"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Collection of scheduled appointments"
+    },
+    "/records/{recordId}": {
+      "schema": "SessionRecord",
+      "description": "Collection of clinical session records"
+    },
+    "/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Collection of financial expenses"
+    },
+    "/settings/{userId}": {
+      "schema": "ClinicSettings",
+      "description": "User-specific clinic settings"
+    }
+  }
+}

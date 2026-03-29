@@ -1,0 +1,7 @@
+{
+  "name": "Clínica de Psicanálise",
+  "description": "A professional management system for psychoanalysts to manage patients, appointments, clinical notes, and finances.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
