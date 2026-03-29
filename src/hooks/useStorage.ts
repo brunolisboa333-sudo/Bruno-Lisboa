@@ -247,7 +247,17 @@ export function useStorage() {
       }, (error) => handleFirestoreError(error, OperationType.LIST, 'users'));
     }
 
-    // Listen to posts
+    return () => {
+      unsubscribePatients();
+      unsubscribeAppointments();
+      unsubscribeRecords();
+      unsubscribeExpenses();
+      unsubscribeAllUsers();
+    };
+  }, [user, userProfile]);
+
+  // Separate useEffect for posts to allow public access
+  useEffect(() => {
     const postsUnsubscribe = onSnapshot(collection(db, 'posts'), (snapshot) => {
       const postsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as BlogPost[];
       setPosts(postsData.sort((a, b) => {
@@ -256,18 +266,13 @@ export function useStorage() {
         return dateB - dateA;
       }));
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'posts');
+      // If public access is denied for some reason, we just set empty posts
+      console.error("Posts listener error:", error);
+      setPosts([]);
     });
 
-    return () => {
-      unsubscribePatients();
-      unsubscribeAppointments();
-      unsubscribeRecords();
-      unsubscribeExpenses();
-      unsubscribeAllUsers();
-      postsUnsubscribe();
-    };
-  }, [user, userProfile]);
+    return () => postsUnsubscribe();
+  }, [user]); // Re-subscribe when user changes to pick up admin permissions
 
   const updateUserProfile = async (uid: string, updates: Partial<UserProfile>) => {
     if (!user || userProfile?.role !== 'admin') return;

@@ -20,6 +20,7 @@ import {
   X,
   Key,
   Globe,
+  BookOpen,
   Settings as SettingsIcon
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -33,7 +34,7 @@ import { cn } from '../lib/utils';
 const POSTS_PER_PAGE = 6;
 
 export default function AIBrain() {
-  const { posts, savePost, deletePost, userProfile, settings, saveSettings } = useStorage();
+  const { posts, savePost, deletePost, user, userProfile, settings, saveSettings } = useStorage();
   const [activeTab, setActiveTab] = useState<'generator' | 'settings'>('generator');
   const [isGenerating, setIsGenerating] = useState(false);
   const [topic, setTopic] = useState('');
@@ -79,6 +80,11 @@ export default function AIBrain() {
   const generateBlogContent = async () => {
     if (!topic) {
       toast.error('Por favor, insira um tema ou tópico.');
+      return;
+    }
+
+    if (!user) {
+      toast.error('Você precisa estar logado para gerar conteúdo.');
       return;
     }
 
@@ -164,9 +170,10 @@ export default function AIBrain() {
         id: crypto.randomUUID(),
         imageUrl,
         status: 'draft',
-        authorId: userProfile?.uid || '',
+        authorId: user.uid,
         authorName: userProfile?.displayName || 'Bruno Lisboa',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
 
       await savePost(newPost);
@@ -183,7 +190,7 @@ export default function AIBrain() {
   };
 
   const handlePublish = async (isScheduled = false) => {
-    if (!generatedContent) return;
+    if (!generatedContent || !user) return;
 
     if (isScheduled && !scheduledDate) {
       toast.error('Por favor, selecione uma data e hora para o agendamento.');
@@ -197,7 +204,9 @@ export default function AIBrain() {
       id: generatedContent.id || crypto.randomUUID(),
       status: 'published',
       publishedAt: publishDate,
-      createdAt: (generatedContent as BlogPost).createdAt || new Date().toISOString()
+      authorId: (generatedContent as BlogPost).authorId || user.uid,
+      createdAt: (generatedContent as BlogPost).createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     await savePost(newPost);
@@ -210,14 +219,16 @@ export default function AIBrain() {
   };
 
   const handleSaveDraft = async () => {
-    if (!generatedContent) return;
+    if (!generatedContent || !user) return;
 
     const draftPost: BlogPost = {
       ...generatedContent as BlogPost,
       id: generatedContent.id || crypto.randomUUID(),
       status: 'draft',
       publishedAt: undefined,
-      createdAt: (generatedContent as BlogPost).createdAt || new Date().toISOString()
+      authorId: (generatedContent as BlogPost).authorId || user.uid,
+      createdAt: (generatedContent as BlogPost).createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     await savePost(draftPost);
@@ -647,9 +658,14 @@ export default function AIBrain() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {posts
                 .sort((a, b) => {
+                  // First sort by status (drafts first)
                   if (a.status === 'draft' && b.status !== 'draft') return -1;
                   if (a.status !== 'draft' && b.status === 'draft') return 1;
-                  return 0;
+                  
+                  // Then sort by date (newest first)
+                  const dateA = new Date(a.publishedAt || a.createdAt).getTime();
+                  const dateB = new Date(b.publishedAt || b.createdAt).getTime();
+                  return dateB - dateA;
                 })
                 .slice((validCurrentPage - 1) * POSTS_PER_PAGE, validCurrentPage * POSTS_PER_PAGE)
                 .map((post) => (
@@ -761,8 +777,10 @@ export default function AIBrain() {
             )}
           </>
         ) : (
-          <div className="py-12 text-center text-slate-500">
-            Nenhum post publicado ainda.
+          <div className="py-12 text-center text-slate-500 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
+            <BookOpen size={48} className="mx-auto mb-4 opacity-20" />
+            <p className="font-medium">Nenhum post encontrado.</p>
+            <p className="text-sm">Comece gerando um novo conteúdo acima.</p>
           </div>
         )}
       </div>

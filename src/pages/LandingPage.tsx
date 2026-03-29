@@ -17,6 +17,13 @@ import { useStorage } from '../hooks/useStorage';
 export default function LandingPage() {
   const { settings, user, userProfile, posts, isAdmin } = useStorage();
 
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return 'Data não disponível';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'Data inválida';
+    return date.toLocaleDateString('pt-BR');
+  };
+
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-emerald-100 selection:text-emerald-900">
       {/* Navigation */}
@@ -232,7 +239,7 @@ export default function LandingPage() {
                       {post.category}
                     </span>
                     <span className="text-xs text-slate-400">
-                      {new Date(post.publishedAt || '').toLocaleDateString('pt-BR')}
+                      {formatDate(post.publishedAt)}
                     </span>
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors line-clamp-2">

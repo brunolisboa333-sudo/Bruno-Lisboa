@@ -26,6 +26,13 @@ export default function Blog() {
     post.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return 'Data não disponível';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'Data inválida';
+    return date.toLocaleDateString('pt-BR');
+  };
+
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-emerald-100 selection:text-emerald-900">
       {/* Navigation */}
@@ -105,7 +112,7 @@ export default function Blog() {
                       </span>
                       <span className="text-xs text-slate-400 flex items-center gap-1">
                         <Calendar size={12} />
-                        {new Date(post.publishedAt || '').toLocaleDateString('pt-BR')}
+                        {formatDate(post.publishedAt)}
                       </span>
                     </div>
                     
