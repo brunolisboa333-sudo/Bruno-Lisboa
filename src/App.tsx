@@ -229,13 +229,14 @@ function Sidebar({ isOpen, setIsOpen, darkMode, setDarkMode }: {
   );
 }
 
-export default function App() {
+function AppContent() {
   const { settings, user, userProfile, loading, error, logout } = useStorage();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : false;
   });
+  const location = useLocation();
 
   useEffect(() => {
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
@@ -313,51 +314,57 @@ export default function App() {
   }
 
   return (
+    <div className={cn(
+      "flex h-screen font-sans overflow-hidden transition-colors duration-300",
+      darkMode ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"
+    )}>
+      {user && (
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          setIsOpen={setIsSidebarOpen} 
+          darkMode={darkMode} 
+          setDarkMode={setDarkMode} 
+        />
+      )}
+      
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {user && (
+          <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 lg:hidden">
+            <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+              <Menu size={20} />
+            </button>
+            <span className="font-semibold text-slate-900 dark:text-white">{settings.clinicName}</span>
+            <div className="w-9" /> {/* Spacer */}
+          </header>
+        )}
+
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+          <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname}>
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={user ? <Dashboard /> : <Navigate to="/login" />} />
+              <Route path="/patients" element={user ? <Patients /> : <Navigate to="/login" />} />
+              <Route path="/agenda" element={user ? <Agenda /> : <Navigate to="/login" />} />
+              <Route path="/finance" element={user ? <Finance /> : <Navigate to="/login" />} />
+              <Route path="/records" element={user ? <Records /> : <Navigate to="/login" />} />
+              <Route path="/confirmations" element={user ? <Confirmations /> : <Navigate to="/login" />} />
+              <Route path="/settings" element={user ? <SettingsPage /> : <Navigate to="/login" />} />
+              <Route path="/users" element={user && userProfile?.role === 'admin' ? <UsersPage /> : <Navigate to="/" />} />
+            </Routes>
+          </AnimatePresence>
+        </div>
+      </main>
+      
+      <Toaster position="top-right" richColors theme={darkMode ? 'dark' : 'light'} />
+    </div>
+  );
+}
+
+export default function App() {
+  return (
     <ErrorBoundary>
       <Router>
-        <div className={cn(
-          "flex h-screen font-sans overflow-hidden transition-colors duration-300",
-          darkMode ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"
-        )}>
-          {user && (
-            <Sidebar 
-              isOpen={isSidebarOpen} 
-              setIsOpen={setIsSidebarOpen} 
-              darkMode={darkMode} 
-              setDarkMode={setDarkMode} 
-            />
-          )}
-          
-          <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            {user && (
-              <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 lg:hidden">
-                <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
-                  <Menu size={20} />
-                </button>
-                <span className="font-semibold text-slate-900 dark:text-white">{settings.clinicName}</span>
-                <div className="w-9" /> {/* Spacer */}
-              </header>
-            )}
-
-            <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-              <AnimatePresence mode="wait">
-                <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/" element={user ? <Dashboard /> : <Navigate to="/login" />} />
-                  <Route path="/patients" element={user ? <Patients /> : <Navigate to="/login" />} />
-                  <Route path="/agenda" element={user ? <Agenda /> : <Navigate to="/login" />} />
-                  <Route path="/finance" element={user ? <Finance /> : <Navigate to="/login" />} />
-                  <Route path="/records" element={user ? <Records /> : <Navigate to="/login" />} />
-                  <Route path="/confirmations" element={user ? <Confirmations /> : <Navigate to="/login" />} />
-                  <Route path="/settings" element={user ? <SettingsPage /> : <Navigate to="/login" />} />
-                  <Route path="/users" element={user && userProfile?.role === 'admin' ? <UsersPage /> : <Navigate to="/" />} />
-                </Routes>
-              </AnimatePresence>
-            </div>
-          </main>
-          
-          <Toaster position="top-right" richColors theme={darkMode ? 'dark' : 'light'} />
-        </div>
+        <AppContent />
       </Router>
     </ErrorBoundary>
   );
