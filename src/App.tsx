@@ -20,7 +20,8 @@ import {
   Moon,
   Sun,
   LogOut,
-  Clock
+  Clock,
+  Mail
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -280,6 +281,39 @@ function AppContent() {
               className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
             >
               Sair e entrar novamente
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (user && !user.emailVerified) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+        <div className="max-w-md w-full bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-xl text-center space-y-6">
+          <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto">
+            <Mail size={40} />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Verifique seu E-mail</h2>
+            <p className="text-slate-500 dark:text-slate-400">
+              Enviamos um link de confirmação para <strong>{user.email}</strong>. 
+              Por favor, verifique sua caixa de entrada (e a pasta de spam) para validar sua conta.
+            </p>
+          </div>
+          <div className="pt-4 space-y-3">
+            <button 
+              onClick={() => window.location.reload()}
+              className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+            >
+              Já verifiquei meu e-mail
+            </button>
+            <button 
+              onClick={() => logout()}
+              className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            >
+              Sair
             </button>
           </div>
         </div>

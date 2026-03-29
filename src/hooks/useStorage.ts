@@ -13,7 +13,10 @@ import {
   signInWithPopup, 
   GoogleAuthProvider, 
   signOut,
-  User
+  User,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification
 } from 'firebase/auth';
 import { db, auth } from '../firebase';
 import { Patient, Appointment, SessionRecord, Expense, ClinicSettings, UserProfile } from '../types';
@@ -364,7 +367,41 @@ export function useStorage() {
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Login failed:", error);
-      throw error; // Throw so the UI can handle it
+      throw error;
+    }
+  };
+
+  const loginWithEmail = async (email: string, pass: string) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch (error) {
+      console.error("Email login failed:", error);
+      throw error;
+    }
+  };
+
+  const registerWithEmail = async (email: string, pass: string, name: string) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+      await sendEmailVerification(userCredential.user);
+      
+      // Create initial profile immediately to ensure name is saved
+      const userRef = doc(db, 'users', userCredential.user.uid);
+      const isAdmin = email === 'brunolisboa333@gmail.com';
+      const newProfile: UserProfile = {
+        uid: userCredential.user.uid,
+        email: email,
+        displayName: name,
+        role: isAdmin ? 'admin' : 'member',
+        status: isAdmin ? 'authorized' : 'pending',
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(userRef, cleanData(newProfile));
+      
+      toast.success('Cadastro realizado! Verifique seu e-mail para validar sua conta.');
+    } catch (error) {
+      console.error("Registration failed:", error);
+      throw error;
     }
   };
 
@@ -402,6 +439,8 @@ export function useStorage() {
     deleteExpense,
     updateUserProfile,
     login,
+    loginWithEmail,
+    registerWithEmail,
     logout
   };
 }

@@ -61,14 +61,16 @@ service cloud.firestore {
       return isAuthenticated() && 
         (
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-          (request.auth.token.email == "brunolisboa333@gmail.com" && request.auth.token.email_verified == true)
+          (request.auth.token.email == "brunolisboa333@gmail.com")
         );
     }
 
     function isAuthorized() {
       return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'authorized';
+        (
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'authorized') ||
+          (request.auth.token.email == "brunolisboa333@gmail.com")
+        );
     }
 
     function hasRequiredFields(fields) {
@@ -159,7 +161,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isOwner(userId) && (
                       (request.resource.data.role == 'member' && request.resource.data.status == 'pending') ||
-                      (request.auth.token.email == "brunolisboa333@gmail.com" && request.auth.token.email_verified == true && request.resource.data.role == 'admin' && request.resource.data.status == 'authorized')
+                      (request.auth.token.email == "brunolisboa333@gmail.com" && request.resource.data.role == 'admin' && request.resource.data.status == 'authorized')
                     );
       allow update: if isAdmin() || (isOwner(userId) && 
                                      request.resource.data.role == resource.data.role && 
