@@ -253,6 +253,18 @@ export default function AIBrain() {
     toast.success('Alterações salvas com sucesso!');
   };
 
+  const handleQuickPublish = async (post: BlogPost) => {
+    if (!user) return;
+    const updatedPost: BlogPost = {
+      ...post,
+      status: 'published',
+      publishedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    await savePost(updatedPost);
+    toast.success('Post publicado com sucesso!');
+  };
+
   const handleEdit = (post: BlogPost) => {
     setGeneratedContent(post);
     setIsEditing(true);
@@ -465,13 +477,24 @@ export default function AIBrain() {
                 <div className="flex flex-col gap-4 pt-6 border-t border-slate-100 dark:border-slate-800">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {isEditing ? (
-                      <button
-                        onClick={handleUpdate}
-                        className="py-4 bg-emerald-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 dark:shadow-none"
-                      >
-                        <Save size={20} />
-                        Salvar Alterações
-                      </button>
+                      <>
+                        <button
+                          onClick={handleUpdate}
+                          className="py-4 bg-emerald-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 dark:shadow-none"
+                        >
+                          <Save size={20} />
+                          Salvar Alterações
+                        </button>
+                        {generatedContent.status === 'draft' && (
+                          <button
+                            onClick={() => handlePublish(false)}
+                            className="py-4 bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 dark:shadow-none"
+                          >
+                            <CheckCircle2 size={20} />
+                            Publicar Agora
+                          </button>
+                        )}
+                      </>
                     ) : (
                       <button
                         onClick={() => handlePublish(false)}
@@ -687,9 +710,19 @@ export default function AIBrain() {
                         <button
                           onClick={() => deletePost(post.id)}
                           className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                          title="Excluir"
                         >
                           <Trash2 size={16} />
                         </button>
+                        {post.status === 'draft' && (
+                          <button
+                            onClick={() => handleQuickPublish(post)}
+                            className="p-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                            title="Publicar Agora"
+                          >
+                            <CheckCircle2 size={16} />
+                          </button>
+                        )}
                         {post.status === 'published' && (
                           <a
                             href={`/blog/${post.id}`}
@@ -799,7 +832,19 @@ export default function AIBrain() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col"
           >
-            <div className="absolute top-6 right-6 z-10">
+            <div className="absolute top-6 right-6 z-10 flex gap-2">
+              {generatedContent.status === 'draft' && (
+                <button
+                  onClick={() => {
+                    handlePublish(false);
+                    setShowPreview(false);
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-full shadow-lg flex items-center gap-2 transition-all"
+                >
+                  <CheckCircle2 size={18} />
+                  Publicar Agora
+                </button>
+              )}
               <button
                 onClick={() => setShowPreview(false)}
                 className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-colors"
