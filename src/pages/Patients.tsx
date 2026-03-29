@@ -15,19 +15,26 @@ import {
   FileText,
   Plus,
   X,
-  User
+  User,
+  Receipt,
+  Download
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useStorage } from '../hooks/useStorage';
-import { Patient } from '../types';
+import { Patient, SessionRecord } from '../types';
 import { toast } from 'sonner';
+import jsPDF from 'jspdf';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export default function Patients() {
-  const { patients, addPatient, updatePatient, deletePatient, user } = useStorage();
+  const { patients, appointments, records, addPatient, updatePatient, deletePatient, user, settings } = useStorage();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [viewingPatient, setViewingPatient] = useState<Patient | null>(null);
+  const [receiptPatient, setReceiptPatient] = useState<Patient | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const filteredPatients = patients.filter(p => 
@@ -55,6 +62,8 @@ export default function Patients() {
       guardianName: formData.get('guardianName') as string,
       guardianContact: formData.get('guardianContact') as string,
       medications: formData.get('medications') as string,
+      cpf: formData.get('cpf') as string,
+      address: formData.get('address') as string,
       defaultSessionValue: parseFloat(formData.get('defaultSessionValue') as string) || 150,
       totalPaid: parseFloat(formData.get('totalPaid') as string) || 0,
     };
@@ -73,6 +82,84 @@ export default function Patients() {
     }
     setIsModalOpen(false);
     setEditingPatient(null);
+  };
+
+  const getPatientStats = (patientId: string) => {
+    const patient = patients.find(p => p.id === patientId);
+    const patientAppointments = appointments.filter(app => app.patientId === patientId);
+    const now = new Date();
+
+    const totalReceived = patient?.totalPaid || 0;
+
+    const totalBilled = patientAppointments
+      .filter(app => {
+        const appDate = new Date(app.dateTime);
+        return (app.status === 'completed' || app.isPaid || (app.status !== 'cancelled' && appDate < now));
+      })
+      .reduce((acc, app) => acc + (app.price || 0), 0);
+
+    return { totalReceived, totalBilled };
+  };
+
+  const generateReceiptPDF = (patient: Patient, amount: number, description: string) => {
+    const doc = new jsPDF();
+    const date = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+    
+    // Header
+    doc.setFontSize(22);
+    doc.setTextColor(5, 150, 105); // Emerald-600
+    doc.text('RECIBO', 105, 30, { align: 'center' });
+    
+    doc.setDrawColor(229, 231, 235);
+    doc.line(20, 40, 190, 40);
+    
+    // Content
+    doc.setFontSize(12);
+    doc.setTextColor(31, 41, 55); // Slate-800
+    doc.setFont('helvetica', 'normal');
+    
+    const text = `Recebi de ${patient.name}${patient.cpf ? `, inscrito no CPF sob o nº ${patient.cpf}` : ''}, a importância de R$ ${amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${description}).`;
+    
+    const splitText = doc.splitTextToSize(text, 170);
+    doc.text(splitText, 20, 60);
+    
+    doc.text(`Data: ${date}`, 20, 90);
+    
+    // Professional info
+    doc.line(60, 140, 150, 140);
+    doc.setFontSize(10);
+    doc.text(settings.professionalName || 'Profissional', 105, 145, { align: 'center' });
+    doc.text(settings.specialty || 'Especialidade', 105, 150, { align: 'center' });
+    
+    if (settings.clinicName) {
+      doc.setFontSize(12);
+      doc.text(settings.clinicName, 105, 170, { align: 'center' });
+    }
+
+    doc.save(`recibo-${patient.name.toLowerCase().replace(/\s+/g, '-')}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    toast.success('Recibo gerado com sucesso!');
+  };
+
+  const handleGenerateReceipt = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!receiptPatient) return;
+    
+    const formData = new FormData(e.currentTarget);
+    const amount = parseFloat(formData.get('amount') as string);
+    const description = formData.get('description') as string;
+    
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Por favor, insira um valor válido.');
+      return;
+    }
+
+    // Update patient total paid
+    const newTotalPaid = (receiptPatient.totalPaid || 0) + amount;
+    await updatePatient(receiptPatient.id, { totalPaid: newTotalPaid }, true);
+    
+    generateReceiptPDF(receiptPatient, amount, description);
+    setIsReceiptModalOpen(false);
+    setReceiptPatient(null);
   };
 
   return (
@@ -124,7 +211,7 @@ export default function Patients() {
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Paciente</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Contato</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nascimento</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Valor Recebido</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Resumo Financeiro</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Ações</th>
               </tr>
             </thead>
@@ -167,9 +254,20 @@ export default function Patients() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                      R$ {patient.totalPaid?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Recebido:</span>
+                        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                          R$ {getPatientStats(patient.id).totalReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Faturado:</span>
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                          R$ {getPatientStats(patient.id).totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -190,6 +288,16 @@ export default function Patients() {
                           </div>
                         ) : (
                           <>
+                            <button 
+                              onClick={() => {
+                                setReceiptPatient(patient);
+                                setIsReceiptModalOpen(true);
+                              }}
+                              className="p-2 text-emerald-600 hover:text-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                              title="Gerar Recibo"
+                            >
+                              <Receipt size={18} />
+                            </button>
                             <button 
                               onClick={() => setViewingPatient(patient)}
                               className="p-2 text-slate-900 hover:text-emerald-600 hover:bg-emerald-50 dark:text-slate-100 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
@@ -277,6 +385,18 @@ export default function Patients() {
                           <Phone size={16} className="text-slate-400" />
                           <span className="text-sm">{viewingPatient.phone}</span>
                         </div>
+                        {viewingPatient.cpf && (
+                          <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+                            <FileText size={16} className="text-slate-400" />
+                            <span className="text-sm">CPF: {viewingPatient.cpf}</span>
+                          </div>
+                        )}
+                        {viewingPatient.address && (
+                          <div className="flex items-start gap-3 text-slate-600 dark:text-slate-300">
+                            <ExternalLink size={16} className="text-slate-400 mt-1" />
+                            <span className="text-sm">{viewingPatient.address}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     
@@ -299,9 +419,15 @@ export default function Patients() {
                       <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-900/20">
                         <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mb-1">Valor por Sessão</p>
                         <p className="text-lg font-bold text-emerald-800 dark:text-emerald-300">R$ {viewingPatient.defaultSessionValue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                        <div className="mt-2 pt-2 border-t border-emerald-100 dark:border-emerald-900/20">
-                          <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mb-1">Total Pago</p>
-                          <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">R$ {viewingPatient.totalPaid?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <div className="mt-2 pt-2 border-t border-emerald-100 dark:border-emerald-900/20 grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold uppercase mb-1">Total Recebido</p>
+                            <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">R$ {getPatientStats(viewingPatient.id).totalReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase mb-1">Total Faturado</p>
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">R$ {getPatientStats(viewingPatient.id).totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -333,9 +459,48 @@ export default function Patients() {
                     <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{viewingPatient.initialHistory || 'Nenhum histórico registrado.'}</p>
                   </div>
                 </div>
+
+                <div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Histórico de Sessões</h4>
+                  <div className="space-y-3">
+                    {records
+                      .filter(r => r.patientId === viewingPatient.id)
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .map((record) => (
+                        <div key={record.id} className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                              {format(new Date(record.date), "dd 'de' MMMM, yyyy", { locale: ptBR })}
+                            </span>
+                            <span className="text-xs font-bold text-slate-500">
+                              R$ {record.sessionValue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-3">
+                            {record.clinicalNotes || 'Sem observações clínicas.'}
+                          </p>
+                        </div>
+                      ))}
+                    {records.filter(r => r.patientId === viewingPatient.id).length === 0 && (
+                      <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 text-center">
+                        <p className="text-sm text-slate-500">Nenhuma sessão registrada ainda.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+                <button 
+                  onClick={() => {
+                    setReceiptPatient(viewingPatient);
+                    setIsReceiptModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-xl font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors flex items-center gap-2"
+                >
+                  <Receipt size={18} />
+                  Gerar Recibo
+                </button>
                 <button 
                   onClick={() => {
                     setViewingPatient(null);
@@ -415,6 +580,18 @@ export default function Patients() {
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Valor por Sessão (R$)</label>
                     <input name="defaultSessionValue" type="number" step="0.01" defaultValue={editingPatient?.defaultSessionValue || 150} className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" />
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Total Pago Acumulado (R$)</label>
+                    <input name="totalPaid" type="number" step="0.01" defaultValue={editingPatient?.totalPaid || 0} className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">CPF</label>
+                    <input name="cpf" defaultValue={editingPatient?.cpf} placeholder="000.000.000-00" className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" />
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Endereço</label>
+                    <input name="address" defaultValue={editingPatient?.address} placeholder="Rua, número, bairro, cidade..." className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" />
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -443,6 +620,66 @@ export default function Patients() {
                   </button>
                   <button type="submit" className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors">
                     Salvar
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Gerar Recibo */}
+      <AnimatePresence>
+        {isReceiptModalOpen && receiptPatient && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Gerar Recibo</h3>
+                <button onClick={() => setIsReceiptModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={handleGenerateReceipt} className="p-6 space-y-4">
+                <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800 mb-4">
+                  <p className="text-sm text-emerald-800 dark:text-emerald-300 font-medium">Paciente: {receiptPatient.name}</p>
+                  {receiptPatient.cpf && <p className="text-xs text-emerald-600 dark:text-emerald-400">CPF: {receiptPatient.cpf}</p>}
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Valor Pago (R$)</label>
+                  <input 
+                    name="amount" 
+                    type="number" 
+                    step="0.01" 
+                    required 
+                    autoFocus
+                    placeholder="0.00"
+                    className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" 
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Descrição</label>
+                  <input 
+                    name="description" 
+                    defaultValue="Referente a sessões de psicoterapia"
+                    required 
+                    className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" 
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button type="button" onClick={() => setIsReceiptModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-medium transition-colors">
+                    Cancelar
+                  </button>
+                  <button type="submit" className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2">
+                    <Download size={18} />
+                    Gerar Recibo PDF
                   </button>
                 </div>
               </form>

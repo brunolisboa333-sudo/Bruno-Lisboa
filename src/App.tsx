@@ -38,6 +38,62 @@ import UsersPage from './pages/Users';
 import Login from './pages/Login';
 import { useStorage } from './hooks/useStorage';
 import { Navigate } from 'react-router-dom';
+import { Component, ErrorInfo, ReactNode } from 'react';
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("Uncaught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      let errorMessage = "Ocorreu um erro inesperado.";
+      try {
+        const parsedError = JSON.parse(this.state.error?.message || "{}");
+        if (parsedError.error) {
+          errorMessage = `Erro de Banco de Dados: ${parsedError.error} (${parsedError.operationType} em ${parsedError.path})`;
+        }
+      } catch {
+        errorMessage = this.state.error?.message || errorMessage;
+      }
+
+      return (
+        <div className="h-screen w-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+          <div className="max-w-md w-full bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-xl text-center space-y-6 border border-red-100 dark:border-red-900/30">
+            <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto">
+              <X size={40} />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Ops! Algo deu errado</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm break-words">
+                {errorMessage}
+              </p>
+            </div>
+            <div className="pt-4">
+              <button 
+                onClick={() => window.location.reload()}
+                className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+              >
+                Recarregar Página
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 const NAV_ITEMS = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -174,7 +230,7 @@ function Sidebar({ isOpen, setIsOpen, darkMode, setDarkMode }: {
 }
 
 export default function App() {
-  const { settings, user, userProfile, loading, logout } = useStorage();
+  const { settings, user, userProfile, loading, error, logout } = useStorage();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
@@ -194,6 +250,38 @@ export default function App() {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
         <div className="w-12 h-12 border-4 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+        <div className="max-w-md w-full bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-xl text-center space-y-6 border border-red-100 dark:border-red-900/30">
+          <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto">
+            <X size={40} />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Erro de Conexão</h2>
+            <p className="text-slate-500 dark:text-slate-400">
+              {error}
+            </p>
+          </div>
+          <div className="pt-4 flex flex-col gap-3">
+            <button 
+              onClick={() => window.location.reload()}
+              className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+            >
+              Tentar Novamente
+            </button>
+            <button 
+              onClick={() => logout()}
+              className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            >
+              Sair e entrar novamente
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -225,51 +313,53 @@ export default function App() {
   }
 
   return (
-    <Router>
-      <div className={cn(
-        "flex h-screen font-sans overflow-hidden transition-colors duration-300",
-        darkMode ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"
-      )}>
-        {user && (
-          <Sidebar 
-            isOpen={isSidebarOpen} 
-            setIsOpen={setIsSidebarOpen} 
-            darkMode={darkMode} 
-            setDarkMode={setDarkMode} 
-          />
-        )}
-        
-        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <ErrorBoundary>
+      <Router>
+        <div className={cn(
+          "flex h-screen font-sans overflow-hidden transition-colors duration-300",
+          darkMode ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"
+        )}>
           {user && (
-            <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 lg:hidden">
-              <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
-                <Menu size={20} />
-              </button>
-              <span className="font-semibold text-slate-900 dark:text-white">{settings.clinicName}</span>
-              <div className="w-9" /> {/* Spacer */}
-            </header>
+            <Sidebar 
+              isOpen={isSidebarOpen} 
+              setIsOpen={setIsSidebarOpen} 
+              darkMode={darkMode} 
+              setDarkMode={setDarkMode} 
+            />
           )}
+          
+          <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            {user && (
+              <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 lg:hidden">
+                <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+                  <Menu size={20} />
+                </button>
+                <span className="font-semibold text-slate-900 dark:text-white">{settings.clinicName}</span>
+                <div className="w-9" /> {/* Spacer */}
+              </header>
+            )}
 
-          <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-            <AnimatePresence mode="wait">
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/" element={user ? <Dashboard /> : <Navigate to="/login" />} />
-                <Route path="/patients" element={user ? <Patients /> : <Navigate to="/login" />} />
-                <Route path="/agenda" element={user ? <Agenda /> : <Navigate to="/login" />} />
-                <Route path="/finance" element={user ? <Finance /> : <Navigate to="/login" />} />
-                <Route path="/records" element={user ? <Records /> : <Navigate to="/login" />} />
-                <Route path="/confirmations" element={user ? <Confirmations /> : <Navigate to="/login" />} />
-                <Route path="/settings" element={user ? <SettingsPage /> : <Navigate to="/login" />} />
-                <Route path="/users" element={user && userProfile?.role === 'admin' ? <UsersPage /> : <Navigate to="/" />} />
-              </Routes>
-            </AnimatePresence>
-          </div>
-        </main>
-        
-        <Toaster position="top-right" richColors theme={darkMode ? 'dark' : 'light'} />
-      </div>
-    </Router>
+            <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+              <AnimatePresence mode="wait">
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/" element={user ? <Dashboard /> : <Navigate to="/login" />} />
+                  <Route path="/patients" element={user ? <Patients /> : <Navigate to="/login" />} />
+                  <Route path="/agenda" element={user ? <Agenda /> : <Navigate to="/login" />} />
+                  <Route path="/finance" element={user ? <Finance /> : <Navigate to="/login" />} />
+                  <Route path="/records" element={user ? <Records /> : <Navigate to="/login" />} />
+                  <Route path="/confirmations" element={user ? <Confirmations /> : <Navigate to="/login" />} />
+                  <Route path="/settings" element={user ? <SettingsPage /> : <Navigate to="/login" />} />
+                  <Route path="/users" element={user && userProfile?.role === 'admin' ? <UsersPage /> : <Navigate to="/" />} />
+                </Routes>
+              </AnimatePresence>
+            </div>
+          </main>
+          
+          <Toaster position="top-right" richColors theme={darkMode ? 'dark' : 'light'} />
+        </div>
+      </Router>
+    </ErrorBoundary>
   );
 }
 

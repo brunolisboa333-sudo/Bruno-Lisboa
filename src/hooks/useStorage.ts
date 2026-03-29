@@ -90,10 +90,20 @@ export function useStorage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let unsubscribeProfile: (() => void) | null = null;
+
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      
+      // Cleanup previous profile listener if it exists
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = null;
+      }
+
       if (!currentUser) {
         setUserProfile(null);
         setLoading(false);
@@ -102,34 +112,52 @@ export function useStorage() {
 
       // Fetch or create user profile
       const userRef = doc(db, 'users', currentUser.uid);
-      const unsubscribeProfile = onSnapshot(userRef, async (snapshot) => {
+      unsubscribeProfile = onSnapshot(userRef, async (snapshot) => {
         if (snapshot.exists()) {
           setUserProfile(snapshot.data() as UserProfile);
+          setLoading(false);
         } else {
           // Create initial profile
-          const isAdmin = currentUser.email === 'brunolisboa333@gmail.com';
-          const newProfile: UserProfile = {
-            uid: currentUser.uid,
-            email: currentUser.email || '',
-            displayName: currentUser.displayName || '',
-            photoURL: currentUser.photoURL || undefined,
-            role: isAdmin ? 'admin' : 'member',
-            status: isAdmin ? 'authorized' : 'pending',
-            createdAt: new Date().toISOString()
-          };
-          await setDoc(userRef, cleanData(newProfile));
-          setUserProfile(newProfile);
+          try {
+            const isAdmin = currentUser.email === 'brunolisboa333@gmail.com';
+            const newProfile: UserProfile = {
+              uid: currentUser.uid,
+              email: currentUser.email || '',
+              displayName: currentUser.displayName || '',
+              photoURL: currentUser.photoURL || undefined,
+              role: isAdmin ? 'admin' : 'member',
+              status: isAdmin ? 'authorized' : 'pending',
+              createdAt: new Date().toISOString()
+            };
+            await setDoc(userRef, cleanData(newProfile));
+            // Snapshot listener will fire again, but let's be safe
+            setUserProfile(newProfile);
+            setLoading(false);
+          } catch (err) {
+            console.error("Error creating user profile:", err);
+            setError("Erro ao criar perfil de usuário. Verifique as permissões.");
+            setLoading(false);
+          }
         }
-        setLoading(false);
-      }, (error) => {
-        handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
+      }, (err) => {
+        console.error("Profile listener error:", err);
+        // We don't throw here to avoid crashing the app, but we log it for the system
+        const errInfo = {
+          error: err.message,
+          operationType: OperationType.GET,
+          path: `users/${currentUser.uid}`,
+          authInfo: { userId: currentUser.uid, email: currentUser.email }
+        };
+        console.error('Firestore Error: ', JSON.stringify(errInfo));
+        setError("Erro de permissão ao acessar perfil de usuário.");
         setLoading(false);
       });
-
-      return () => unsubscribeProfile();
     });
 
-    return () => unsubscribeAuth();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
   }, []);
 
   useEffect(() => {
@@ -336,6 +364,7 @@ export function useStorage() {
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Login failed:", error);
+      throw error; // Throw so the UI can handle it
     }
   };
 
@@ -357,6 +386,7 @@ export function useStorage() {
     userProfile,
     allUsers,
     loading,
+    error,
     addPatient,
     updatePatient,
     addAppointment,

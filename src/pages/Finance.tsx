@@ -46,9 +46,11 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export default function Finance() {
-  const { appointments, records, patients, expenses, addExpense, updateAppointment, deleteExpense, user } = useStorage();
+  const { appointments, records, patients, expenses, addExpense, updateAppointment, deleteExpense, user, settings } = useStorage();
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
-  const [period, setPeriod] = useState<'monthly' | 'quarterly' | 'yearly' | 'all'>('monthly');
+  const [period, setPeriod] = useState<'monthly' | 'quarterly' | 'yearly' | 'custom' | 'all'>('monthly');
+  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [paymentFilter, setPaymentFilter] = useState<'pending' | 'paid'>('pending');
 
   const now = new Date();
@@ -64,6 +66,10 @@ export default function Finance() {
     if (period === 'monthly') return isSameMonth(date, now) && isSameYear(date, now);
     if (period === 'quarterly') return isAfter(date, subMonths(now, 3));
     if (period === 'yearly') return isSameYear(date, now);
+    if (period === 'custom') {
+      const d = format(date, 'yyyy-MM-dd');
+      return d >= startDate && d <= endDate;
+    }
     return true;
   });
 
@@ -72,6 +78,10 @@ export default function Finance() {
     if (period === 'monthly') return isSameMonth(date, now) && isSameYear(date, now);
     if (period === 'quarterly') return isAfter(date, subMonths(now, 3));
     if (period === 'yearly') return isSameYear(date, now);
+    if (period === 'custom') {
+      const d = format(date, 'yyyy-MM-dd');
+      return d >= startDate && d <= endDate;
+    }
     return true;
   });
 
@@ -80,6 +90,10 @@ export default function Finance() {
     if (period === 'monthly') return isSameMonth(date, now) && isSameYear(date, now);
     if (period === 'quarterly') return isAfter(date, subMonths(now, 3));
     if (period === 'yearly') return isSameYear(date, now);
+    if (period === 'custom') {
+      const d = format(date, 'yyyy-MM-dd');
+      return d >= startDate && d <= endDate;
+    }
     return true;
   });
 
@@ -126,7 +140,7 @@ export default function Finance() {
 
   const exportToPDF = () => {
     const doc = new jsPDF();
-    const { clinicName, professionalName } = useStorage().settings;
+    const { clinicName, professionalName } = settings;
 
     // Header
     doc.setFontSize(20);
@@ -149,6 +163,7 @@ export default function Finance() {
       body: [
         ['Faturamento Total', `R$ ${totalFaturado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
         ['Recebido (Caixa)', `R$ ${totalRecebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+        ['Total Pendente', `R$ ${totalPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
         ['Despesas Totais', `R$ ${totalDespesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
         ['Lucro Líquido', `R$ ${lucroLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
       ],
@@ -158,28 +173,32 @@ export default function Finance() {
 
     // Transactions Table
     const allTransactions = [
-      ...filteredRecords.map(rec => {
-        const patient = patients.find(p => p.id === rec.patientId);
-        return {
-          date: format(new Date(rec.date), 'dd/MM/yyyy'),
-          desc: `Sessão: ${patient?.name || 'Paciente'}`,
-          type: 'Entrada',
-          val: rec.sessionValue || 0
-        };
-      }),
+      ...filteredAppointments
+        .filter(app => app.status === 'completed' || app.isPaid || (app.status !== 'cancelled' && new Date(app.dateTime) < now))
+        .map(app => ({
+          date: format(new Date(app.dateTime), 'dd/MM/yyyy'),
+          rawDate: new Date(app.dateTime),
+          desc: `Sessão: ${app.patientName}`,
+          type: app.isPaid ? 'Entrada (Pago)' : 'Entrada (Pendente)',
+          val: app.price || 0,
+          isExpense: false
+        })),
       ...filteredExpenses.map(exp => ({
         date: format(new Date(exp.date), 'dd/MM/yyyy'),
+        rawDate: new Date(exp.date),
         desc: exp.description,
         type: 'Saída',
-        val: exp.value
+        val: exp.value,
+        isExpense: true
       }))
-    ].sort((a, b) => new Date(b.date.split('/').reverse().join('-')).getTime() - new Date(a.date.split('/').reverse().join('-')).getTime());
+    ].sort((a, b) => b.rawDate.getTime() - a.rawDate.getTime());
 
+    const finalY = (doc as any).lastAutoTable.finalY || 100;
     doc.setFontSize(14);
-    doc.text('Detalhamento de Lançamentos', 14, (doc as any).lastAutoTable.finalY + 15);
+    doc.text('Detalhamento de Lançamentos', 14, finalY + 15);
 
     autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 20,
+      startY: finalY + 20,
       head: [['Data', 'Descrição', 'Tipo', 'Valor']],
       body: allTransactions.map(t => [
         t.date,
@@ -221,19 +240,28 @@ export default function Finance() {
     }
   });
 
-  const recentTransactions = [...records]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5)
-    .map(rec => {
-      const patient = patients.find(p => p.id === rec.patientId);
-      return {
-        id: rec.id,
-        title: `Sessão: ${patient?.name || 'Paciente'}`,
-        date: format(new Date(rec.date), 'dd MMM yyyy', { locale: ptBR }),
-        amount: rec.sessionValue || 0,
-        type: 'income'
-      };
-    });
+  const recentTransactions = [
+    ...appointments
+      .filter(app => app.isPaid)
+      .map(app => ({
+        id: app.id,
+        title: `Sessão: ${app.patientName}`,
+        date: format(new Date(app.dateTime), 'dd MMM yyyy', { locale: ptBR }),
+        amount: app.price || 0,
+        type: 'income' as const,
+        timestamp: new Date(app.dateTime).getTime()
+      })),
+    ...expenses.map(e => ({
+      id: e.id,
+      title: e.description,
+      date: format(new Date(e.date), 'dd MMM yyyy', { locale: ptBR }),
+      amount: e.value,
+      type: 'expense' as const,
+      timestamp: new Date(e.date).getTime()
+    }))
+  ]
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 10);
 
   return (
     <motion.div
@@ -249,8 +277,8 @@ export default function Finance() {
         </div>
         
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-            {(['monthly', 'quarterly', 'yearly', 'all'] as const).map((p) => (
+          <div className="flex flex-wrap items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+            {(['monthly', 'quarterly', 'yearly', 'custom', 'all'] as const).map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
@@ -261,10 +289,28 @@ export default function Finance() {
                     : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                 )}
               >
-                {p === 'monthly' ? 'Mensal' : p === 'quarterly' ? 'Trimestral' : p === 'yearly' ? 'Anual' : 'Tudo'}
+                {p === 'monthly' ? 'Mensal' : p === 'quarterly' ? 'Trimestral' : p === 'yearly' ? 'Anual' : p === 'custom' ? 'Personalizado' : 'Tudo'}
               </button>
             ))}
           </div>
+
+          {period === 'custom' && (
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+              <input 
+                type="date" 
+                value={startDate} 
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-transparent text-sm border-none focus:ring-0 dark:text-white"
+              />
+              <span className="text-slate-400">até</span>
+              <input 
+                type="date" 
+                value={endDate} 
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-transparent text-sm border-none focus:ring-0 dark:text-white"
+              />
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             <button 
@@ -451,13 +497,7 @@ export default function Finance() {
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <h3 className="font-semibold text-slate-900 mb-6">Últimos Lançamentos</h3>
           <div className="space-y-4">
-            {[...recentTransactions, ...expenses.map(e => ({
-              id: e.id,
-              title: e.description,
-              date: format(new Date(e.date), 'dd MMM yyyy', { locale: ptBR }),
-              amount: e.value,
-              type: 'expense'
-            }))].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 8).map((transaction) => (
+            {recentTransactions.map((transaction) => (
               <div key={transaction.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors group">
                 <div className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center",

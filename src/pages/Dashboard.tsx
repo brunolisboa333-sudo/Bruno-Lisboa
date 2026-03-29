@@ -10,10 +10,12 @@ import {
   MessageCircle,
   X,
   Video,
-  MapPin
+  MapPin,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react';
 import { useStorage } from '../hooks/useStorage';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
@@ -29,7 +31,7 @@ import {
 } from 'recharts';
 
 export default function Dashboard() {
-  const { patients, appointments, addAppointment, addPatient, updateAppointment, records, settings, user } = useStorage();
+  const { patients, appointments, addAppointment, addPatient, updateAppointment, records, settings, user, expenses } = useStorage();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNewPatient, setIsNewPatient] = useState(false);
 
@@ -185,6 +187,29 @@ export default function Dashboard() {
     };
   });
 
+  const recentTransactions = [
+    ...appointments
+      .filter(app => app.isPaid)
+      .map(app => ({
+        id: app.id,
+        title: `Sessão: ${app.patientName}`,
+        date: format(new Date(app.dateTime), 'dd MMM yyyy', { locale: ptBR }),
+        amount: app.price || 0,
+        type: 'income' as const,
+        timestamp: new Date(app.dateTime).getTime()
+      })),
+    ...expenses.map(e => ({
+      id: e.id,
+      title: e.description,
+      date: format(new Date(e.date), 'dd MMM yyyy', { locale: ptBR }),
+      amount: e.value,
+      type: 'expense' as const,
+      timestamp: new Date(e.date).getTime()
+    }))
+  ]
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 5);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -289,6 +314,41 @@ export default function Dashboard() {
               Ver agenda completa
             </button>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <h3 className="font-semibold text-slate-900 dark:text-white mb-6">Últimos Lançamentos</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {recentTransactions.length > 0 ? recentTransactions.map((transaction) => (
+            <div key={transaction.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group border border-slate-100 dark:border-slate-800">
+              <div className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center",
+                transaction.type === 'income' ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400" : "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
+              )}>
+                {transaction.type === 'income' ? <ArrowUpRight size={20} /> : <ArrowDownRight size={20} />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                  {transaction.title}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{transaction.date}</p>
+              </div>
+              <div className="text-right">
+                <p className={cn(
+                  "text-sm font-bold",
+                  transaction.type === 'income' ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                )}>
+                  {transaction.type === 'income' ? '+' : '-'} R$ {transaction.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-bold tracking-wider">
+                  {transaction.type === 'income' ? 'Recebido' : 'Pago'}
+                </p>
+              </div>
+            </div>
+          )) : (
+            <p className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm col-span-full">Nenhum lançamento recente.</p>
+          )}
         </div>
       </div>
 

@@ -12,6 +12,8 @@ export interface Patient {
   guardianName?: string; // Added: Legal guardian/Responsible adult
   guardianContact?: string; // Added: Guardian's contact
   medications?: string; // Added: Medication usage and which medicines
+  cpf?: string; // Added: CPF for receipts
+  address?: string; // Added: Address for receipts
   createdAt: string;
   updatedAt: string;
   userId: string;
