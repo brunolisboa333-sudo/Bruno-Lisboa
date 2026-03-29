@@ -10,12 +10,16 @@ import {
   BookOpen, 
   Users,
   LayoutDashboard,
-  ShieldCheck
+  ShieldCheck,
+  Menu,
+  X
 } from 'lucide-react';
 import { useStorage } from '../hooks/useStorage';
+import { useState } from 'react';
 
 export default function LandingPage() {
   const { settings, user, userProfile, posts, isAdmin } = useStorage();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'Data não disponível';
@@ -28,7 +32,32 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-emerald-100 selection:text-emerald-900">
       {/* Navigation */}
       <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-md z-50 border-b border-slate-100">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        {/* Top Info Bar */}
+        <div className="bg-slate-900 text-slate-300 py-1.5 px-6">
+          <div className="max-w-7xl mx-auto flex justify-between items-center text-[10px] sm:text-xs font-medium uppercase tracking-wider">
+            <div className="flex items-center gap-4 sm:gap-6">
+              {settings.whatsapp && (
+                <a href={`https://wa.me/${settings.whatsapp.replace(/\D/g, '')}`} className="flex items-center gap-1.5 hover:text-white transition-colors">
+                  <Phone size={12} className="text-emerald-500" />
+                  <span className="hidden xs:inline">{settings.whatsapp}</span>
+                  <span className="xs:hidden">WhatsApp</span>
+                </a>
+              )}
+              {settings.email && (
+                <a href={`mailto:${settings.email}`} className="flex items-center gap-1.5 hover:text-white transition-colors">
+                  <Mail size={12} className="text-emerald-500" />
+                  <span className="hidden sm:inline">{settings.email}</span>
+                  <span className="sm:hidden">E-mail</span>
+                </a>
+              )}
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="hidden md:inline text-slate-500">Neuropsicanálise & Psicanálise Clínica</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 h-16 sm:h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-xl">
               Ψ
@@ -60,7 +89,95 @@ export default function LandingPage() {
               </Link>
             ) : null}
           </div>
+
+          {/* Mobile Menu Button & Quick Access */}
+          <div className="flex items-center gap-2 md:hidden">
+            {isAdmin ? (
+              <Link 
+                to="/dashboard" 
+                className="p-2 bg-emerald-600 text-white rounded-lg shadow-lg shadow-emerald-200"
+                title="Painel de Controle"
+              >
+                <LayoutDashboard size={20} />
+              </Link>
+            ) : !user ? (
+              <Link 
+                to="/login" 
+                className="p-2 border border-slate-200 text-slate-600 rounded-lg"
+                title="Acesso Restrito"
+              >
+                <ShieldCheck size={20} />
+              </Link>
+            ) : null}
+            
+            <button 
+              className="p-2 text-slate-600 hover:text-emerald-600 transition-colors"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Menu Dropdown */}
+        {isMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="md:hidden bg-white border-b border-slate-100 p-6 space-y-4"
+          >
+            <a 
+              href="#sobre" 
+              onClick={() => setIsMenuOpen(false)}
+              className="block text-base font-medium text-slate-600 hover:text-emerald-600 transition-colors"
+            >
+              Sobre
+            </a>
+            <a 
+              href="#especialidades" 
+              onClick={() => setIsMenuOpen(false)}
+              className="block text-base font-medium text-slate-600 hover:text-emerald-600 transition-colors"
+            >
+              Especialidades
+            </a>
+            <Link 
+              to="/blog" 
+              onClick={() => setIsMenuOpen(false)}
+              className="block text-base font-medium text-slate-600 hover:text-emerald-600 transition-colors"
+            >
+              Blog
+            </Link>
+            <a 
+              href="#contato" 
+              onClick={() => setIsMenuOpen(false)}
+              className="block text-base font-medium text-slate-600 hover:text-emerald-600 transition-colors"
+            >
+              Contato
+            </a>
+            
+            <div className="pt-4 border-t border-slate-100">
+              {isAdmin ? (
+                <Link 
+                  to="/dashboard" 
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all"
+                >
+                  <LayoutDashboard size={18} />
+                  Painel de Controle
+                </Link>
+              ) : !user ? (
+                <Link 
+                  to="/login" 
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-2 px-5 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+                >
+                  <ShieldCheck size={18} />
+                  Acesso Restrito
+                </Link>
+              ) : null}
+            </div>
+          </motion.div>
+        )}
       </nav>
 
       {/* Hero Section */}

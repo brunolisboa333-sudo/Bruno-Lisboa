@@ -258,7 +258,15 @@ export function useStorage() {
 
   // Separate useEffect for posts to allow public access
   useEffect(() => {
-    const postsUnsubscribe = onSnapshot(collection(db, 'posts'), (snapshot) => {
+    const isAdminUser = user?.email === 'brunolisboa333@gmail.com' || userProfile?.role === 'admin';
+    
+    const postsRef = collection(db, 'posts');
+    // If not admin, we MUST filter by status='published' because rules are not filters
+    const q = isAdminUser 
+      ? query(postsRef) 
+      : query(postsRef, where('status', '==', 'published'));
+
+    const postsUnsubscribe = onSnapshot(q, (snapshot) => {
       const postsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as BlogPost[];
       setPosts(postsData.sort((a, b) => {
         const dateA = new Date(a.publishedAt || a.createdAt || 0).getTime();
@@ -272,7 +280,7 @@ export function useStorage() {
     });
 
     return () => postsUnsubscribe();
-  }, [user]); // Re-subscribe when user changes to pick up admin permissions
+  }, [user, userProfile]); // Re-subscribe when user or profile changes
 
   const updateUserProfile = async (uid: string, updates: Partial<UserProfile>) => {
     if (!user || userProfile?.role !== 'admin') return;
