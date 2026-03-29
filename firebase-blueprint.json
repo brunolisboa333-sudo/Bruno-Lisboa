@@ -85,6 +85,38 @@
         "specialty": { "type": "string" },
         "defaultSessionValue": { "type": "number" }
       }
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile and permissions",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "member"] },
+        "status": { "type": "string", "enum": ["authorized", "pending", "blocked"] },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "permissions": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "status"]
+    },
+    "PendingInvitation": {
+      "title": "PendingInvitation",
+      "description": "Pending invitation for a new team member",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "permissions": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "displayName", "permissions", "createdAt"]
     }
   },
   "firestore": {
@@ -107,6 +139,14 @@
     "/settings/{userId}": {
       "schema": "ClinicSettings",
       "description": "User-specific clinic settings"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles and permissions"
+    },
+    "/invitations/{email}": {
+      "schema": "PendingInvitation",
+      "description": "Pending invitations for new members"
     }
   }
 }

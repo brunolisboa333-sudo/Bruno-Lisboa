@@ -3,6 +3,7 @@ import {
   collection, 
   onSnapshot, 
   setDoc, 
+  getDoc,
   deleteDoc,
   doc, 
   query, 
@@ -20,7 +21,7 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { db, auth } from '../firebase';
-import { Patient, Appointment, SessionRecord, Expense, ClinicSettings, UserProfile } from '../types';
+import { Patient, Appointment, SessionRecord, Expense, ClinicSettings, UserProfile, PendingInvitation } from '../types';
 import { toast } from 'sonner';
 
 enum OperationType {
@@ -127,13 +128,29 @@ export function useStorage() {
           // Create initial profile
           try {
             const isAdmin = currentUser.email === 'brunolisboa333@gmail.com';
+            
+            // Check for pending invitation
+            let invitationData: Partial<PendingInvitation> | null = null;
+            if (currentUser.email) {
+              const inviteRef = doc(db, 'invitations', currentUser.email.toLowerCase());
+              const inviteSnap = await getDoc(inviteRef);
+              if (inviteSnap.exists()) {
+                invitationData = inviteSnap.data() as PendingInvitation;
+                // Delete invitation after use
+                await deleteDoc(inviteRef);
+              }
+            }
+
             const newProfile: UserProfile = {
               uid: currentUser.uid,
               email: currentUser.email || '',
-              displayName: currentUser.displayName || '',
+              displayName: invitationData?.displayName || currentUser.displayName || '',
               photoURL: currentUser.photoURL || undefined,
               role: isAdmin ? 'admin' : 'member',
-              status: isAdmin ? 'authorized' : 'pending',
+              status: (isAdmin || invitationData) ? 'authorized' : 'pending',
+              phone: invitationData?.phone || '',
+              address: invitationData?.address || '',
+              permissions: invitationData?.permissions || (isAdmin ? [] : ['view_patients', 'view_agenda']),
               createdAt: new Date().toISOString()
             };
             console.log("Creating profile with data:", newProfile);
@@ -412,6 +429,43 @@ export function useStorage() {
     }
   };
 
+  const hasPermission = (permissionId: string) => {
+    if (!userProfile) return false;
+    if (userProfile.role === 'admin') return true;
+    return (userProfile.permissions || []).includes(permissionId);
+  };
+
+  const createInvitation = async (invitation: Omit<PendingInvitation, 'createdAt'>) => {
+    if (!user || userProfile?.role !== 'admin') return;
+    try {
+      const inviteRef = doc(db, 'invitations', invitation.email.toLowerCase());
+      await setDoc(inviteRef, cleanData({
+        ...invitation,
+        createdAt: new Date().toISOString()
+      }));
+
+      // Send email notification via server-side API
+      try {
+        await fetch('/api/send-invitation', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: invitation.email,
+            displayName: invitation.displayName,
+            role: 'member' // Default for invitations
+          }),
+        });
+      } catch (emailError) {
+        console.error("Error triggering email notification:", emailError);
+        // We don't fail the whole process if email fails, but we log it
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `invitations/${invitation.email}`);
+    }
+  };
+
   return {
     patients,
     appointments,
@@ -437,9 +491,11 @@ export function useStorage() {
     deleteRecord,
     deleteExpense,
     updateUserProfile,
+    createInvitation,
     login,
     loginWithEmail,
     registerWithEmail,
-    logout
+    logout,
+    hasPermission
   };
 }

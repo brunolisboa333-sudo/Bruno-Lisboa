@@ -161,12 +161,18 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isOwner(userId) && (
                       (request.resource.data.role == 'member' && request.resource.data.status == 'pending') ||
-                      (request.auth.token.email == "brunolisboa333@gmail.com" && request.resource.data.role == 'admin' && request.resource.data.status == 'authorized')
+                      (request.auth.token.email == "brunolisboa333@gmail.com" && request.resource.data.role == 'admin' && request.resource.data.status == 'authorized') ||
+                      (exists(/databases/$(database)/documents/invitations/$(request.auth.token.email.lower())))
                     );
       allow update: if isAdmin() || (isOwner(userId) && 
                                      request.resource.data.role == resource.data.role && 
                                      request.resource.data.status == resource.data.status);
       allow delete: if isAdmin();
+    }
+
+    match /invitations/{email} {
+      allow read, delete: if isAuthenticated() && request.auth.token.email.lower() == email.lower();
+      allow write: if isAdmin();
     }
   }
 }

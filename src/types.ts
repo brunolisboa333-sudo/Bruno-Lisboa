@@ -77,5 +77,17 @@ export interface UserProfile {
   photoURL?: string;
   role: 'admin' | 'member';
   status: 'authorized' | 'pending' | 'blocked';
+  phone?: string;
+  address?: string;
+  permissions?: string[]; // Added: specific access permissions
+  createdAt: string;
+}
+
+export interface PendingInvitation {
+  email: string;
+  displayName: string;
+  phone?: string;
+  address?: string;
+  permissions: string[];
   createdAt: string;
 }

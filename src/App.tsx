@@ -98,11 +98,11 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 
 const NAV_ITEMS = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { path: '/agenda', icon: Calendar, label: 'Agenda' },
-  { path: '/confirmations', icon: MessageCircle, label: 'Pendências' },
-  { path: '/patients', icon: Users, label: 'Pacientes' },
-  { path: '/finance', icon: Wallet, label: 'Financeiro' },
-  { path: '/records', icon: FileText, label: 'Prontuários' },
+  { path: '/agenda', icon: Calendar, label: 'Agenda', permission: 'view_agenda' },
+  { path: '/confirmations', icon: MessageCircle, label: 'Pendências', permission: 'view_confirmations' },
+  { path: '/patients', icon: Users, label: 'Pacientes', permission: 'view_patients' },
+  { path: '/finance', icon: Wallet, label: 'Financeiro', permission: 'view_finance' },
+  { path: '/records', icon: FileText, label: 'Prontuários', permission: 'view_records' },
 ];
 
 function Sidebar({ isOpen, setIsOpen, darkMode, setDarkMode }: { 
@@ -114,14 +114,15 @@ function Sidebar({ isOpen, setIsOpen, darkMode, setDarkMode }: {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { settings, logout, userProfile } = useStorage();
+  const { settings, logout, userProfile, hasPermission } = useStorage();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const navItems = [...NAV_ITEMS];
+  const navItems = NAV_ITEMS.filter(item => !item.permission || hasPermission(item.permission));
+  
   if (userProfile?.role === 'admin') {
     navItems.push({ path: '/users', icon: Users, label: 'Equipe' });
   }
@@ -231,7 +232,7 @@ function Sidebar({ isOpen, setIsOpen, darkMode, setDarkMode }: {
 }
 
 function AppContent() {
-  const { settings, user, userProfile, loading, error, logout } = useStorage();
+  const { settings, user, userProfile, loading, error, logout, hasPermission } = useStorage();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
@@ -380,11 +381,28 @@ function AppContent() {
             <Routes location={location} key={location.pathname}>
               <Route path="/login" element={<Login />} />
               <Route path="/" element={user ? <Dashboard /> : <Navigate to="/login" />} />
-              <Route path="/patients" element={user ? <Patients /> : <Navigate to="/login" />} />
-              <Route path="/agenda" element={user ? <Agenda /> : <Navigate to="/login" />} />
-              <Route path="/finance" element={user ? <Finance /> : <Navigate to="/login" />} />
-              <Route path="/records" element={user ? <Records /> : <Navigate to="/login" />} />
-              <Route path="/confirmations" element={user ? <Confirmations /> : <Navigate to="/login" />} />
+              
+              <Route 
+                path="/patients" 
+                element={user && hasPermission('view_patients') ? <Patients /> : <Navigate to="/" />} 
+              />
+              <Route 
+                path="/agenda" 
+                element={user && hasPermission('view_agenda') ? <Agenda /> : <Navigate to="/" />} 
+              />
+              <Route 
+                path="/finance" 
+                element={user && hasPermission('view_finance') ? <Finance /> : <Navigate to="/" />} 
+              />
+              <Route 
+                path="/records" 
+                element={user && hasPermission('view_records') ? <Records /> : <Navigate to="/" />} 
+              />
+              <Route 
+                path="/confirmations" 
+                element={user && hasPermission('view_confirmations') ? <Confirmations /> : <Navigate to="/" />} 
+              />
+              
               <Route path="/settings" element={user ? <SettingsPage /> : <Navigate to="/login" />} />
               <Route path="/users" element={user && userProfile?.role === 'admin' ? <UsersPage /> : <Navigate to="/" />} />
             </Routes>

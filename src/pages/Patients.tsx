@@ -17,7 +17,9 @@ import {
   X,
   User,
   Receipt,
-  Download
+  Download,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useStorage } from '../hooks/useStorage';
@@ -26,9 +28,10 @@ import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '../lib/utils';
 
 export default function Patients() {
-  const { patients, appointments, records, addPatient, updatePatient, deletePatient, user, settings } = useStorage();
+  const { patients, appointments, records, addPatient, updatePatient, deletePatient, user, settings, hasPermission } = useStorage();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
@@ -36,12 +39,25 @@ export default function Patients() {
   const [viewingPatient, setViewingPatient] = useState<Patient | null>(null);
   const [receiptPatient, setReceiptPatient] = useState<Patient | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  const canViewFinance = hasPermission('view_finance');
 
   const filteredPatients = patients.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (p.email && p.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (p.phone && p.phone.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentPatients = filteredPatients.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
 
   const handleDelete = async (id: string) => {
     await deletePatient(id);
@@ -194,7 +210,7 @@ export default function Patients() {
             placeholder="Buscar por nome, email ou telefone..."
             className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all dark:text-white"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
           />
         </div>
         <button className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
@@ -211,12 +227,12 @@ export default function Patients() {
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Paciente</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Contato</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nascimento</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Resumo Financeiro</th>
+                {canViewFinance && <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Resumo Financeiro</th>}
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {filteredPatients.length > 0 ? filteredPatients.map((patient) => (
+              {currentPatients.length > 0 ? currentPatients.map((patient) => (
                 <tr key={patient.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -253,22 +269,24 @@ export default function Patients() {
                       {patient.birthDate}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Recebido:</span>
-                        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                          R$ {getPatientStats(patient.id).totalReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </span>
+                  {canViewFinance && (
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">Recebido:</span>
+                          <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                            R$ {getPatientStats(patient.id).totalReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">Faturado:</span>
+                          <span className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                            R$ {getPatientStats(patient.id).totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Faturado:</span>
-                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                          R$ {getPatientStats(patient.id).totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    </div>
-                  </td>
+                    </td>
+                  )}
                   <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         {deleteConfirmId === patient.id ? (
@@ -288,16 +306,18 @@ export default function Patients() {
                           </div>
                         ) : (
                           <>
-                            <button 
-                              onClick={() => {
-                                setReceiptPatient(patient);
-                                setIsReceiptModalOpen(true);
-                              }}
-                              className="p-2 text-emerald-600 hover:text-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                              title="Gerar Recibo"
-                            >
-                              <Receipt size={18} />
-                            </button>
+                            {canViewFinance && (
+                              <button 
+                                onClick={() => {
+                                  setReceiptPatient(patient);
+                                  setIsReceiptModalOpen(true);
+                                }}
+                                className="p-2 text-emerald-600 hover:text-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                                title="Gerar Recibo"
+                              >
+                                <Receipt size={18} />
+                              </button>
+                            )}
                             <button 
                               onClick={() => setViewingPatient(patient)}
                               className="p-2 text-slate-900 hover:text-emerald-600 hover:bg-emerald-50 dark:text-slate-100 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
@@ -344,6 +364,49 @@ export default function Patients() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Mostrando <span className="font-medium text-slate-900 dark:text-white">{startIndex + 1}</span> a <span className="font-medium text-slate-900 dark:text-white">{Math.min(startIndex + ITEMS_PER_PAGE, filteredPatients.length)}</span> de <span className="font-medium text-slate-900 dark:text-white">{filteredPatients.length}</span> pacientes
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-2 text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={cn(
+                      "w-8 h-8 text-sm font-medium rounded-lg transition-all",
+                      currentPage === page 
+                        ? "bg-emerald-600 text-white shadow-sm shadow-emerald-200" 
+                        : "text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                    )}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="p-2 text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal Visualizar */}
@@ -414,23 +477,25 @@ export default function Patients() {
                   </div>
 
                   <div className="space-y-4">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Financeiro</h4>
-                      <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-900/20">
-                        <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mb-1">Valor por Sessão</p>
-                        <p className="text-lg font-bold text-emerald-800 dark:text-emerald-300">R$ {viewingPatient.defaultSessionValue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                        <div className="mt-2 pt-2 border-t border-emerald-100 dark:border-emerald-900/20 grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold uppercase mb-1">Total Recebido</p>
-                            <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">R$ {getPatientStats(viewingPatient.id).totalReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase mb-1">Total Faturado</p>
-                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">R$ {getPatientStats(viewingPatient.id).totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    {canViewFinance && (
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Financeiro</h4>
+                        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-900/20">
+                          <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mb-1">Valor por Sessão</p>
+                          <p className="text-lg font-bold text-emerald-800 dark:text-emerald-300">R$ {viewingPatient.defaultSessionValue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                          <div className="mt-2 pt-2 border-t border-emerald-100 dark:border-emerald-900/20 grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold uppercase mb-1">Total Recebido</p>
+                              <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">R$ {getPatientStats(viewingPatient.id).totalReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase mb-1">Total Faturado</p>
+                              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">R$ {getPatientStats(viewingPatient.id).totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
                     {viewingPatient.guardianName && (
                       <div>
@@ -472,9 +537,11 @@ export default function Patients() {
                             <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
                               {format(new Date(record.date), "dd 'de' MMMM, yyyy", { locale: ptBR })}
                             </span>
-                            <span className="text-xs font-bold text-slate-500">
-                              R$ {record.sessionValue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </span>
+                            {canViewFinance && (
+                              <span className="text-xs font-bold text-slate-500">
+                                R$ {record.sessionValue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-3">
                             {record.clinicalNotes || 'Sem observações clínicas.'}
@@ -491,16 +558,18 @@ export default function Patients() {
               </div>
 
               <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
-                <button 
-                  onClick={() => {
-                    setReceiptPatient(viewingPatient);
-                    setIsReceiptModalOpen(true);
-                  }}
-                  className="px-4 py-2 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-xl font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors flex items-center gap-2"
-                >
-                  <Receipt size={18} />
-                  Gerar Recibo
-                </button>
+                {canViewFinance && (
+                  <button 
+                    onClick={() => {
+                      setReceiptPatient(viewingPatient);
+                      setIsReceiptModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-xl font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors flex items-center gap-2"
+                  >
+                    <Receipt size={18} />
+                    Gerar Recibo
+                  </button>
+                )}
                 <button 
                   onClick={() => {
                     setViewingPatient(null);
@@ -576,14 +645,23 @@ export default function Patients() {
                       <option value="Prefiro não dizer">Prefiro não dizer</option>
                     </select>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Valor por Sessão (R$)</label>
-                    <input name="defaultSessionValue" type="number" step="0.01" defaultValue={editingPatient?.defaultSessionValue || 150} className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Total Pago Acumulado (R$)</label>
-                    <input name="totalPaid" type="number" step="0.01" defaultValue={editingPatient?.totalPaid || 0} className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" />
-                  </div>
+                  {canViewFinance ? (
+                    <>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Valor por Sessão (R$)</label>
+                        <input name="defaultSessionValue" type="number" step="0.01" defaultValue={editingPatient?.defaultSessionValue || 150} className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Total Pago Acumulado (R$)</label>
+                        <input name="totalPaid" type="number" step="0.01" defaultValue={editingPatient?.totalPaid || 0} className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <input type="hidden" name="defaultSessionValue" defaultValue={editingPatient?.defaultSessionValue || 150} />
+                      <input type="hidden" name="totalPaid" defaultValue={editingPatient?.totalPaid || 0} />
+                    </>
+                  )}
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">CPF</label>
                     <input name="cpf" defaultValue={editingPatient?.cpf} placeholder="000.000.000-00" className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" />

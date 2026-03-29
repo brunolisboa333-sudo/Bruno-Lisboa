@@ -12,7 +12,11 @@ import {
   Video,
   MapPin,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  AlertCircle,
+  DollarSign,
+  Bell,
+  CheckCircle2
 } from 'lucide-react';
 import { useStorage } from '../hooks/useStorage';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, subDays } from 'date-fns';
@@ -20,6 +24,7 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 import { Appointment } from '../types';
+import { Link } from 'react-router-dom';
 import { 
   ResponsiveContainer,
   AreaChart,
@@ -31,9 +36,11 @@ import {
 } from 'recharts';
 
 export default function Dashboard() {
-  const { patients, appointments, addAppointment, addPatient, updateAppointment, records, settings, user, expenses } = useStorage();
+  const { patients, appointments, addAppointment, addPatient, updateAppointment, records, settings, user, expenses, hasPermission } = useStorage();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNewPatient, setIsNewPatient] = useState(false);
+
+  const canViewFinance = hasPermission('view_finance');
 
   const today = new Date();
   const todayAppointments = appointments.filter(app => 
@@ -54,6 +61,19 @@ export default function Dashboard() {
   const taxaPresenca = totalSessoes > 0 ? Math.round((sessoesConfirmadas / totalSessoes) * 100) : 0;
   
   const ticketMedio = records.length > 0 ? Math.round(records.reduce((acc, r) => acc + (r.sessionValue || 0), 0) / records.length) : 0;
+
+  const upcomingPendingConfirmation = appointments.filter(app => {
+    const appDate = new Date(app.dateTime);
+    const now = new Date();
+    const fortyEightHoursFromNow = new Date(now.getTime() + (48 * 60 * 60 * 1000));
+    return appDate > now && appDate <= fortyEightHoursFromNow && !app.isConfirmed && app.status !== 'cancelled';
+  });
+
+  const pendingPayments = appointments.filter(app => {
+    const appDate = new Date(app.dateTime);
+    const now = new Date();
+    return appDate < now && !app.isPaid && app.status !== 'cancelled';
+  });
 
   const sendWhatsApp = (app: Appointment) => {
     const patient = patients.find(p => p.id === app.patientId);
@@ -168,10 +188,10 @@ export default function Dashboard() {
 
   const stats = [
     { label: 'Total de Pacientes', value: patients.length, icon: Users, color: 'text-slate-900', bg: 'bg-slate-50 dark:bg-slate-800/50' },
-    { label: 'Faturamento Mensal', value: `R$ ${totalFaturadoMes.toLocaleString('pt-BR')}`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+    { label: 'Faturamento Mensal', value: `R$ ${totalFaturadoMes.toLocaleString('pt-BR')}`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20', hidden: !canViewFinance },
     { label: 'Taxa de Presença', value: `${taxaPresenca}%`, icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-    { label: 'Ticket Médio', value: `R$ ${ticketMedio}`, icon: Clock, color: 'text-slate-900', bg: 'bg-slate-50 dark:bg-slate-800/50' },
-  ];
+    { label: 'Ticket Médio', value: `R$ ${ticketMedio}`, icon: Clock, color: 'text-slate-900', bg: 'bg-slate-50 dark:bg-slate-800/50', hidden: !canViewFinance },
+  ].filter(s => !s.hidden);
 
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
@@ -222,13 +242,15 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Bem-vindo, {settings.professionalName}</h1>
           <p className="text-slate-500 dark:text-slate-400">Aqui está o resumo do seu consultório hoje.</p>
         </div>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-200"
-        >
-          <Plus size={20} />
-          Nova Consulta
-        </button>
+        {hasPermission('view_agenda') && (
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-200"
+          >
+            <Plus size={20} />
+            Nova Consulta
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -246,37 +268,97 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-semibold text-slate-900 dark:text-white">Desempenho Semanal</h3>
-            <select className="text-sm border-none bg-slate-50 dark:bg-slate-800 rounded-lg px-2 py-1 focus:ring-0 dark:text-slate-300">
-              <option>Esta semana</option>
-              <option>Mês passado</option>
-            </select>
-          </div>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', backgroundColor: '#fff' }}
-                />
-                <Area type="monotone" dataKey="valor" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+      {/* Alerts Section */}
+      {(upcomingPendingConfirmation.length > 0 || (pendingPayments.length > 0 && canViewFinance)) && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-4"
+        >
+          {upcomingPendingConfirmation.length > 0 && (
+            <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 p-4 rounded-2xl flex gap-4 items-start">
+              <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-xl text-amber-600 dark:text-amber-400 shrink-0">
+                <Bell size={20} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-bold text-amber-900 dark:text-amber-100">Confirmações Pendentes</h4>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                  Você tem {upcomingPendingConfirmation.length} {upcomingPendingConfirmation.length === 1 ? 'consulta' : 'consultas'} nas próximas 48h aguardando confirmação.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {upcomingPendingConfirmation.slice(0, 3).map(app => (
+                    <button 
+                      key={app.id}
+                      onClick={() => sendWhatsApp(app)}
+                      className="text-[10px] font-bold uppercase tracking-wider bg-white dark:bg-slate-900 px-2 py-1 rounded-lg border border-amber-200 dark:border-amber-900/30 text-amber-700 dark:text-amber-300 hover:bg-amber-100 transition-colors truncate max-w-[150px]"
+                    >
+                      {app.patientName.split(' ')[0]} ({format(new Date(app.dateTime), 'HH:mm')})
+                    </button>
+                  ))}
+                  {upcomingPendingConfirmation.length > 3 && (
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 self-center font-medium">+{upcomingPendingConfirmation.length - 3} mais</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          {pendingPayments.length > 0 && canViewFinance && (
+            <div className="bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-900/30 p-4 rounded-2xl flex gap-4 items-start">
+              <div className="p-2 bg-rose-100 dark:bg-rose-900/30 rounded-xl text-rose-600 dark:text-rose-400 shrink-0">
+                <DollarSign size={20} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-bold text-rose-900 dark:text-rose-100">Pagamentos Pendentes</h4>
+                <p className="text-xs text-rose-700 dark:text-rose-300 mt-1">
+                  Existem {pendingPayments.length} {pendingPayments.length === 1 ? 'sessão' : 'sessões'} realizadas que ainda não foram marcadas como pagas.
+                </p>
+                <Link 
+                  to="/finance"
+                  className="mt-3 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-white dark:bg-slate-900 px-2 py-1 rounded-lg border border-rose-200 dark:border-rose-900/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 transition-colors"
+                >
+                  Ver no Financeiro
+                  <ChevronRight size={12} />
+                </Link>
+              </div>
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {canViewFinance && (
+          <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-semibold text-slate-900 dark:text-white">Desempenho Semanal</h3>
+              <select className="text-sm border-none bg-slate-50 dark:bg-slate-800 rounded-lg px-2 py-1 focus:ring-0 dark:text-slate-300">
+                <option>Esta semana</option>
+                <option>Mês passado</option>
+              </select>
+            </div>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', backgroundColor: '#fff' }}
+                  />
+                  <Area type="monotone" dataKey="valor" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        <div className={cn("bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm", !canViewFinance && "lg:col-span-3")}>
           <h3 className="font-semibold text-slate-900 dark:text-white mb-6">Próximas Consultas</h3>
           <div className="space-y-4">
             {todayAppointments.length > 0 ? todayAppointments.map((app, i) => (
@@ -310,47 +392,51 @@ export default function Dashboard() {
                 <p className="text-sm text-slate-500 dark:text-slate-400">Nenhuma consulta para hoje.</p>
               </div>
             )}
-            <button className="w-full py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors mt-2">
-              Ver agenda completa
-            </button>
+            {hasPermission('view_agenda') && (
+              <Link to="/agenda" className="block w-full py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors mt-2 text-center">
+                Ver agenda completa
+              </Link>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <h3 className="font-semibold text-slate-900 dark:text-white mb-6">Últimos Lançamentos</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {recentTransactions.length > 0 ? recentTransactions.map((transaction) => (
-            <div key={transaction.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group border border-slate-100 dark:border-slate-800">
-              <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center",
-                transaction.type === 'income' ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400" : "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
-              )}>
-                {transaction.type === 'income' ? <ArrowUpRight size={20} /> : <ArrowDownRight size={20} />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
-                  {transaction.title}
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{transaction.date}</p>
-              </div>
-              <div className="text-right">
-                <p className={cn(
-                  "text-sm font-bold",
-                  transaction.type === 'income' ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+      {canViewFinance && (
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <h3 className="font-semibold text-slate-900 dark:text-white mb-6">Últimos Lançamentos</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recentTransactions.length > 0 ? recentTransactions.map((transaction) => (
+              <div key={transaction.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group border border-slate-100 dark:border-slate-800">
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center",
+                  transaction.type === 'income' ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400" : "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
                 )}>
-                  {transaction.type === 'income' ? '+' : '-'} R$ {transaction.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-bold tracking-wider">
-                  {transaction.type === 'income' ? 'Recebido' : 'Pago'}
-                </p>
+                  {transaction.type === 'income' ? <ArrowUpRight size={20} /> : <ArrowDownRight size={20} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                    {transaction.title}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{transaction.date}</p>
+                </div>
+                <div className="text-right">
+                  <p className={cn(
+                    "text-sm font-bold",
+                    transaction.type === 'income' ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                  )}>
+                    {transaction.type === 'income' ? '+' : '-'} R$ {transaction.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-bold tracking-wider">
+                    {transaction.type === 'income' ? 'Recebido' : 'Pago'}
+                  </p>
+                </div>
               </div>
-            </div>
-          )) : (
-            <p className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm col-span-full">Nenhum lançamento recente.</p>
-          )}
+            )) : (
+              <p className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm col-span-full">Nenhum lançamento recente.</p>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Modal Agendamento */}
       <AnimatePresence>

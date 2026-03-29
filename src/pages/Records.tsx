@@ -23,12 +23,14 @@ import { SessionRecord } from '../types';
 import { toast } from 'sonner';
 
 export default function Records() {
-  const { patients, records, appointments, addRecord, updateRecord, updatePatient, updateAppointment, deleteRecord, deletePatient, user } = useStorage();
+  const { patients, records, appointments, addRecord, updateRecord, updatePatient, updateAppointment, deleteRecord, deletePatient, user, hasPermission } = useStorage();
   const [selectedPatient, setSelectedPatient] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<SessionRecord | null>(null);
   const [deletePatientConfirm, setDeletePatientConfirm] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
+
+  const canViewFinance = hasPermission('view_finance');
 
   const patientRecords = records.filter(r => r.patientId === selectedPatient).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const activePatient = patients.find(p => p.id === selectedPatient);
@@ -278,19 +280,23 @@ export default function Records() {
                           {format(new Date(record.date), "dd 'de' MMMM, yyyy", { locale: ptBR })}
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
-                            R$ {record.sessionValue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
+                          {canViewFinance && (
+                            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
+                              R$ {record.sessionValue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                          )}
                           <span className="text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded-full">
                             Evolução: {record.evolution}/10
                           </span>
-                          <button 
-                            onClick={() => generateReceipt(record)}
-                            className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors"
-                            title="Gerar Recibo"
-                          >
-                            <Download size={16} />
-                          </button>
+                          {canViewFinance && (
+                            <button 
+                              onClick={() => generateReceipt(record)}
+                              className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors"
+                              title="Gerar Recibo"
+                            >
+                              <Download size={16} />
+                            </button>
+                          )}
                           <button 
                             onClick={() => {
                               if (confirm('Tem certeza que deseja excluir esta evolução?')) {
@@ -388,20 +394,24 @@ export default function Records() {
                       />
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Valor da Sessão (R$)</label>
-                    <div className="relative">
-                      <DollarSign size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input 
-                        name="sessionValue" 
-                        type="number" 
-                        step="0.01" 
-                        defaultValue={editingRecord ? editingRecord.sessionValue : (activePatient?.defaultSessionValue || 150)} 
-                        required 
-                        className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" 
-                      />
+                  {canViewFinance ? (
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Valor da Sessão (R$)</label>
+                      <div className="relative">
+                        <DollarSign size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input 
+                          name="sessionValue" 
+                          type="number" 
+                          step="0.01" 
+                          defaultValue={editingRecord ? editingRecord.sessionValue : (activePatient?.defaultSessionValue || 150)} 
+                          required 
+                          className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" 
+                        />
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <input name="sessionValue" type="hidden" defaultValue={editingRecord ? editingRecord.sessionValue : (activePatient?.defaultSessionValue || 150)} />
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Evolução (1-10)</label>
@@ -426,18 +436,20 @@ export default function Records() {
                     placeholder="Descreva o que foi trabalhado na sessão..." 
                   />
                 </div>
-                <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800">
-                  <input 
-                    type="checkbox" 
-                    name="isPaid" 
-                    id="isPaid"
-                    defaultChecked={editingRecord ? appointments.find(a => a.id === editingRecord.appointmentId)?.isPaid : false}
-                    className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500" 
-                  />
-                  <label htmlFor="isPaid" className="text-sm font-medium text-emerald-700 dark:text-emerald-400 cursor-pointer">
-                    Confirmar Pagamento desta Sessão
-                  </label>
-                </div>
+                {canViewFinance && (
+                  <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800">
+                    <input 
+                      type="checkbox" 
+                      name="isPaid" 
+                      id="isPaid"
+                      defaultChecked={editingRecord ? appointments.find(a => a.id === editingRecord.appointmentId)?.isPaid : false}
+                      className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500" 
+                    />
+                    <label htmlFor="isPaid" className="text-sm font-medium text-emerald-700 dark:text-emerald-400 cursor-pointer">
+                      Confirmar Pagamento desta Sessão
+                    </label>
+                  </div>
+                )}
                 <div className="flex justify-end gap-3 pt-4">
                   <button 
                     type="button" 

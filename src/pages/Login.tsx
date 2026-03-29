@@ -24,7 +24,9 @@ export default function Login() {
       console.error("Google Login error:", error);
       let msg = 'Erro ao entrar com Google.';
       if (error.code === 'auth/popup-blocked') msg = 'O popup foi bloqueado pelo navegador. Verifique as configurações de popups.';
-      else if (error.code === 'auth/popup-closed-by-user') msg = 'O login foi cancelado. Verifique se a janela foi fechada ou se cookies de terceiros estão bloqueados.';
+      else if (error.code === 'auth/popup-closed-by-user') {
+        msg = 'O login foi cancelado. No Chrome, verifique se "Cookies de terceiros" estão permitidos ou use o login por e-mail abaixo.';
+      }
       else if (error.code === 'auth/cancelled-popup-request') msg = 'A solicitação de login foi cancelada.';
       else if (error.code === 'auth/unauthorized-domain') msg = 'Este domínio não está autorizado no Firebase.';
       else if (error.code === 'auth/network-request-failed') msg = 'Erro de rede. Verifique sua conexão.';
@@ -62,7 +64,9 @@ export default function Login() {
       else if (error.code === 'auth/weak-password') msg = 'Senha muito fraca.';
       else if (error.code === 'auth/invalid-email') msg = 'E-mail inválido.';
       else if (error.code === 'auth/popup-blocked') msg = 'O popup foi bloqueado pelo navegador. Verifique as configurações de popups.';
-      else if (error.code === 'auth/popup-closed-by-user') msg = 'O login foi cancelado. Verifique se a janela foi fechada ou se cookies de terceiros estão bloqueados.';
+      else if (error.code === 'auth/popup-closed-by-user') {
+        msg = 'O login foi cancelado. No Chrome, verifique se "Cookies de terceiros" estão permitidos ou use o login por e-mail abaixo.';
+      }
       else if (error.code === 'auth/unauthorized-domain') msg = 'Este domínio não está autorizado no Firebase.';
       else if (error.code === 'auth/network-request-failed') msg = 'Erro de rede. Verifique sua conexão.';
       else if (error.code === 'auth/internal-error') msg = 'Erro interno do Firebase. Tente novamente mais tarde.';
@@ -98,20 +102,25 @@ export default function Login() {
 
           <div className="space-y-6">
             {!isRegistering && (
-              <button
-                onClick={handleGoogleLogin}
-                disabled={isLoading}
-                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-4 rounded-2xl transition-all flex items-center justify-center gap-3 group hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm"
-              >
-                {isLoading ? (
-                  <div className="w-6 h-6 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6" />
-                    Entrar com Google
-                  </>
-                )}
-              </button>
+              <>
+                <button
+                  onClick={handleGoogleLogin}
+                  disabled={isLoading}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-4 rounded-2xl transition-all flex items-center justify-center gap-3 group hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm"
+                >
+                  {isLoading ? (
+                    <div className="w-6 h-6 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6" />
+                      Entrar com Google
+                    </>
+                  )}
+                </button>
+                <p className="text-[10px] text-slate-400 text-center -mt-4">
+                  Problemas no Chrome? Verifique se cookies de terceiros estão permitidos.
+                </p>
+              </>
             )}
 
             {!isRegistering && (

@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 import { Appointment } from '../types';
 
 export default function Agenda() {
-  const { appointments, patients, addAppointment, updateAppointment, addPatient, updatePatient, deleteAppointment, user } = useStorage();
+  const { appointments, patients, addAppointment, updateAppointment, addPatient, updatePatient, deleteAppointment, user, hasPermission } = useStorage();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'day' | 'week' | 'month'>('week');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,6 +33,8 @@ export default function Agenda() {
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{ date: Date, hour: number } | null>(null);
+
+  const canViewFinance = hasPermission('view_finance');
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(currentDate, { weekStartsOn: 1 }), i));
   const hours = Array.from({ length: 14 }, (_, i) => i + 8); // 8:00 to 21:00
@@ -543,10 +545,14 @@ export default function Agenda() {
                       className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" 
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Valor (R$)</label>
-                    <input name="price" type="number" defaultValue="150" required className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" />
-                  </div>
+                  {canViewFinance ? (
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Valor (R$)</label>
+                      <input name="price" type="number" defaultValue="150" required className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" />
+                    </div>
+                  ) : (
+                    <input name="price" type="hidden" defaultValue="150" />
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Tipo de Atendimento</label>
@@ -663,29 +669,33 @@ export default function Agenda() {
                     </p>
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-                      <span className="text-xs font-bold">R$</span>
-                      <span className="text-xs font-medium uppercase tracking-wider">Valor</span>
+                  {canViewFinance && (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                        <span className="text-xs font-bold">R$</span>
+                        <span className="text-xs font-medium uppercase tracking-wider">Valor</span>
+                      </div>
+                      <p className="text-slate-900 dark:text-white font-medium">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedAppointment.price)}
+                      </p>
                     </div>
-                    <p className="text-slate-900 dark:text-white font-medium">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedAppointment.price)}
-                    </p>
-                  </div>
+                  )}
                 </div>
 
                 <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Status do Pagamento</span>
-                    <span className={cn(
-                      "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
-                      selectedAppointment.isPaid 
-                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
-                        : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                    )}>
-                      {selectedAppointment.isPaid ? 'Pago' : 'Pendente'}
-                    </span>
-                  </div>
+                  {canViewFinance && (
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Status do Pagamento</span>
+                      <span className={cn(
+                        "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+                        selectedAppointment.isPaid 
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
+                          : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                      )}>
+                        {selectedAppointment.isPaid ? 'Pago' : 'Pendente'}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Status da Confirmação</span>
@@ -699,22 +709,24 @@ export default function Agenda() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <button 
-                      onClick={() => {
-                        togglePayment(selectedAppointment.id);
-                        setSelectedAppointment(prev => prev ? { ...prev, isPaid: !prev.isPaid } : null);
-                      }}
-                      className={cn(
-                        "flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold transition-all",
-                        selectedAppointment.isPaid
-                          ? "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
-                          : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-200 dark:shadow-none"
-                      )}
-                    >
-                      <CheckCircle2 size={18} />
-                      {selectedAppointment.isPaid ? 'Estornar Pagamento' : 'Pagamento Feito'}
-                    </button>
+                  <div className={cn("grid gap-3 mb-3", canViewFinance ? "grid-cols-2" : "grid-cols-1")}>
+                    {canViewFinance && (
+                      <button 
+                        onClick={() => {
+                          togglePayment(selectedAppointment.id);
+                          setSelectedAppointment(prev => prev ? { ...prev, isPaid: !prev.isPaid } : null);
+                        }}
+                        className={cn(
+                          "flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold transition-all",
+                          selectedAppointment.isPaid
+                            ? "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
+                            : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-200 dark:shadow-none"
+                        )}
+                      >
+                        <CheckCircle2 size={18} />
+                        {selectedAppointment.isPaid ? 'Estornar Pagamento' : 'Pagamento Feito'}
+                      </button>
+                    )}
                     <button 
                       onClick={() => sendWhatsApp(selectedAppointment)}
                       className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold hover:bg-emerald-100 transition-all dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400"
