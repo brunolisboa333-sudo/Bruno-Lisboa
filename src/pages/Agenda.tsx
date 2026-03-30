@@ -283,26 +283,29 @@ export default function Agenda() {
                     )}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <span className={cn(
-                        "text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full",
-                        isSameDay(day, new Date()) ? "bg-emerald-600 text-white" : "text-slate-600 dark:text-slate-400"
-                      )}>
-                        {format(day, 'd')}
-                      </span>
-                      {dayAppointments.length === 0 && (
-                        <button 
-                          onClick={() => {
-                            setSelectedSlot({ date: day, hour: 9 });
-                            setIsModalOpen(true);
-                          }}
-                          className="p-1 text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded-lg"
-                        >
-                          <Plus size={14} />
-                        </button>
-                      )}
+                      <div className="flex flex-col items-center">
+                        <span className={cn(
+                          "text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full",
+                          isSameDay(day, new Date()) ? "bg-emerald-600 text-white" : "text-slate-600 dark:text-slate-400"
+                        )}>
+                          {format(day, 'd')}
+                        </span>
+                        {dayAppointments.length > 0 && (
+                          <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-1 shadow-sm shadow-emerald-200" />
+                        )}
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setSelectedSlot({ date: day, hour: 9 });
+                          setIsModalOpen(true);
+                        }}
+                        className="p-1 text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded-lg"
+                      >
+                        <Plus size={14} />
+                      </button>
                     </div>
                     <div className="space-y-1">
-                      {dayAppointments.slice(0, 3).map(app => (
+                      {dayAppointments.slice(0, 4).map(app => (
                         <div 
                           key={app.id} 
                           onClick={(e) => {
@@ -311,31 +314,18 @@ export default function Agenda() {
                             setIsDetailsModalOpen(true);
                           }}
                           className={cn(
-                            "px-2 py-1 rounded-md text-[10px] font-medium truncate border-l-2 flex items-center justify-between group/app cursor-pointer",
+                            "px-1.5 py-0.5 rounded text-[9px] font-bold truncate border-l-2 flex items-center justify-between group/app cursor-pointer transition-all hover:translate-x-0.5",
                             app.isConfirmed 
                               ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-500" 
-                              : "bg-slate-900 text-white border-slate-900"
+                              : "bg-slate-900 text-white border-slate-700"
                           )}
                         >
                           <span className="truncate">{format(new Date(app.dateTime), 'HH:mm')} {app.patientName}</span>
-                          <div className="flex items-center gap-1">
-                            {!app.isConfirmed && <MessageCircle size={8} className="flex-shrink-0" />}
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setAppointmentToDelete(app);
-                                setIsDeleteModalOpen(true);
-                              }}
-                              className="opacity-0 group-hover/app:opacity-100 p-0.5 hover:bg-white/50 dark:hover:bg-slate-700/50 rounded transition-opacity"
-                            >
-                              <Trash2 size={8} className="text-red-500" />
-                            </button>
-                          </div>
                         </div>
                       ))}
-                      {dayAppointments.length > 3 && (
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium pl-1">
-                          + {dayAppointments.length - 3} sessões
+                      {dayAppointments.length > 4 && (
+                        <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold pl-1">
+                          + {dayAppointments.length - 4} sessões
                         </p>
                       )}
                     </div>
@@ -385,67 +375,66 @@ export default function Agenda() {
 
                       return (
                         <div key={i} className="border-l border-slate-100 dark:border-slate-800 p-1 relative group/slot hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                          {dayAppointments.map((app) => (
-                            <div 
-                              key={app.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedAppointment(app);
-                                setIsDetailsModalOpen(true);
-                              }}
-                              className={cn(
-                                "absolute inset-x-1 top-1 bottom-1 rounded-lg p-2 text-xs shadow-sm border-l-4 overflow-hidden cursor-pointer hover:brightness-95 transition-all",
-                                app.isConfirmed 
-                                  ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 text-emerald-700 dark:text-emerald-400" 
-                                  : "bg-slate-900 border-slate-900 text-white"
-                              )}
-                            >
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="font-bold truncate">{app.patientName}</span>
-                                <div className="flex items-center gap-1">
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleConfirmation(app.id);
-                                    }}
-                                    className={cn(
-                                      "p-1.5 rounded-md transition-colors",
-                                      app.isConfirmed ? "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/40" : "text-slate-400 hover:bg-white/50 dark:hover:bg-slate-700/50 bg-white/20 dark:bg-slate-800/20"
-                                    )}
-                                    title={app.isConfirmed ? "Confirmado" : "Marcar como confirmado"}
-                                  >
-                                    <CheckCircle2 size={16} />
-                                  </button>
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      sendWhatsApp(app);
-                                    }}
-                                    className="p-1.5 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 bg-emerald-50 dark:bg-emerald-900/20 rounded-md transition-colors"
-                                    title="Confirmar via WhatsApp"
-                                  >
-                                    <MessageCircle size={16} />
-                                  </button>
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setAppointmentToDelete(app);
-                                      setIsDeleteModalOpen(true);
-                                    }}
-                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
-                                    title="Excluir sessão"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                  {app.type === 'online' ? <Video size={10} /> : <MapPin size={10} />}
+                          {dayAppointments.map((app, index) => {
+                            const width = 100 / dayAppointments.length;
+                            const left = width * index;
+                            
+                            return (
+                              <div 
+                                key={app.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedAppointment(app);
+                                  setIsDetailsModalOpen(true);
+                                }}
+                                style={{ 
+                                  left: `${left}%`, 
+                                  width: `${width === 100 ? 'calc(100% - 8px)' : `calc(${width}% - 4px)`}`,
+                                  marginLeft: '4px'
+                                }}
+                                className={cn(
+                                  "absolute top-1 bottom-1 rounded-lg p-2 text-xs shadow-sm border-l-4 overflow-hidden cursor-pointer hover:brightness-95 transition-all z-10",
+                                  app.isConfirmed 
+                                    ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 text-emerald-700 dark:text-emerald-400" 
+                                    : "bg-slate-900 border-slate-900 text-white"
+                                )}
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-bold truncate">{app.patientName}</span>
+                                  <div className="flex items-center gap-1">
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleConfirmation(app.id);
+                                      }}
+                                      className={cn(
+                                        "p-1 rounded-md transition-colors",
+                                        app.isConfirmed ? "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/40" : "text-slate-400 hover:bg-white/50 dark:hover:bg-slate-700/50 bg-white/20 dark:bg-slate-800/20"
+                                      )}
+                                      title={app.isConfirmed ? "Confirmado" : "Marcar como confirmado"}
+                                    >
+                                      <CheckCircle2 size={14} />
+                                    </button>
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        sendWhatsApp(app);
+                                      }}
+                                      className="p-1 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 bg-emerald-50 dark:bg-emerald-900/20 rounded-md transition-colors"
+                                      title="Confirmar via WhatsApp"
+                                    >
+                                      <MessageCircle size={14} />
+                                    </button>
+                                    {app.type === 'online' ? <Video size={10} /> : <MapPin size={10} />}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 opacity-70">
+                                  <Clock size={10} />
+                                  <span>{format(new Date(app.dateTime), 'HH:mm')}</span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1 opacity-70">
-                                <Clock size={10} />
-                                <span>{format(new Date(app.dateTime), 'HH:mm')}</span>
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                           {dayAppointments.length === 0 && (
                             <button 
                               onClick={() => {
