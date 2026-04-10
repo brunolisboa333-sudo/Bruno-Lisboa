@@ -207,9 +207,15 @@ export default function LandingPage() {
                 Agendar Consulta
                 <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
               </a>
-              <a href="#sobre" className="px-8 py-4 bg-slate-100 text-slate-700 rounded-2xl font-bold hover:bg-slate-200 transition-all">
-                Conheça meu trabalho
-              </a>
+              {settings.email && (
+                <a 
+                  href={`mailto:${settings.email}`}
+                  className="px-8 py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
+                >
+                  <Mail size={20} className="text-emerald-600" />
+                  Enviar E-mail
+                </a>
+              )}
             </div>
           </motion.div>
           
@@ -421,7 +427,12 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <p className="text-sm text-slate-400 uppercase font-bold tracking-widest">E-mail</p>
-                    <p className="text-xl font-medium">{settings.email || 'brunolisboa333@gmail.com'}</p>
+                    <a 
+                      href={`mailto:${settings.email || 'brunolisboapsi@gmail.com'}`}
+                      className="text-xl font-medium hover:text-emerald-400 transition-colors"
+                    >
+                      {settings.email || 'brunolisboapsi@gmail.com'}
+                    </a>
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
@@ -451,7 +462,16 @@ export default function LandingPage() {
                   <label className="text-sm font-bold text-slate-400 uppercase tracking-wider">Mensagem</label>
                   <textarea rows={4} className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-emerald-500 transition-colors resize-none" placeholder="Como posso te ajudar?" />
                 </div>
-                <button className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-900/20">
+                <button 
+                  onClick={() => {
+                    const name = (document.querySelector('input[placeholder="Seu nome"]') as HTMLInputElement)?.value;
+                    const email = (document.querySelector('input[placeholder="seu@email.com"]') as HTMLInputElement)?.value;
+                    const message = (document.querySelector('textarea') as HTMLTextAreaElement)?.value;
+                    const mailtoLink = `mailto:${settings.email || 'brunolisboapsi@gmail.com'}?subject=Contato via Site - ${name}&body=Nome: ${name}%0D%0AE-mail: ${email}%0D%0A%0D%0AMensagem:%0D%0A${message}`;
+                    window.location.href = mailtoLink;
+                  }}
+                  className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-900/20"
+                >
                   Enviar Mensagem
                 </button>
               </div>
@@ -462,15 +482,41 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="py-12 border-t border-slate-100 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:row items-center justify-between gap-8">
-          <p className="text-slate-500 text-sm">
-            © 2026 {settings.clinicName || 'Clínica Bruno Lisboa'}. Todos os direitos reservados.
-          </p>
-          <div className="flex gap-8">
-            <Link to="/login" className="text-slate-400 hover:text-emerald-600 transition-colors">Acesso Administrativo</Link>
-            <a href="#" className="text-slate-400 hover:text-emerald-600 transition-colors">Instagram</a>
-            <a href="#" className="text-slate-400 hover:text-emerald-600 transition-colors">LinkedIn</a>
-            <a href="#" className="text-slate-400 hover:text-emerald-600 transition-colors">Facebook</a>
+        <div className="max-w-7xl mx-auto space-y-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold">
+                Ψ
+              </div>
+              <span className="font-bold text-lg tracking-tight text-slate-900">
+                {settings.clinicName || 'Clínica Bruno Lisboa'}
+              </span>
+            </div>
+            <div className="flex flex-wrap justify-center gap-8">
+              {settings.email && (
+                <a href={`mailto:${settings.email}`} className="flex items-center gap-2 text-slate-500 hover:text-emerald-600 transition-colors text-sm">
+                  <Mail size={16} />
+                  {settings.email}
+                </a>
+              )}
+              {settings.whatsapp && (
+                <a href={`https://wa.me/${settings.whatsapp.replace(/\D/g, '')}`} className="flex items-center gap-2 text-slate-500 hover:text-emerald-600 transition-colors text-sm">
+                  <Phone size={16} />
+                  {settings.whatsapp}
+                </a>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8 pt-8 border-t border-slate-50">
+            <p className="text-slate-500 text-sm">
+              © 2026 {settings.clinicName || 'Clínica Bruno Lisboa'}. Todos os direitos reservados.
+            </p>
+            <div className="flex gap-8">
+              <Link to="/login" className="text-slate-400 hover:text-emerald-600 transition-colors text-sm">Acesso Administrativo</Link>
+              <a href="#" className="text-slate-400 hover:text-emerald-600 transition-colors text-sm">Instagram</a>
+              <a href="#" className="text-slate-400 hover:text-emerald-600 transition-colors text-sm">LinkedIn</a>
+            </div>
           </div>
         </div>
       </footer>

@@ -91,7 +91,7 @@ export function useStorage() {
     specialty: 'Neuropsicanálise & Psicanálise Clínica',
     defaultSessionValue: 150,
     whatsapp: '31 999215840',
-    email: 'brunolisboa333@gmail.com',
+    email: 'brunolisboapsi@gmail.com',
     geminiKeys: []
   });
   const [user, setUser] = useState<User | null>(null);

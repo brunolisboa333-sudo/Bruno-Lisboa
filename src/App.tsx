@@ -455,6 +455,38 @@ function AppContent() {
       </main>
       
       <Toaster position="top-right" richColors theme={darkMode ? 'dark' : 'light'} />
+
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-4 items-center">
+        {settings.email && (
+          <motion.a
+            href={`mailto:${settings.email}`}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            className="w-14 h-14 bg-slate-800 text-white rounded-full flex items-center justify-center shadow-2xl hover:bg-slate-900 transition-colors"
+            title="Enviar E-mail"
+          >
+            <Mail size={28} />
+          </motion.a>
+        )}
+        {settings.whatsapp && (
+          <motion.a
+            href={`https://wa.me/${settings.whatsapp.replace(/\D/g, '')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            className="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-2xl shadow-emerald-500/40 hover:bg-emerald-600 transition-colors"
+            title="Falar no WhatsApp"
+          >
+            <MessageCircle size={32} fill="currentColor" />
+          </motion.a>
+        )}
+      </div>
     </div>
   );
 }
