@@ -46,6 +46,19 @@ export default function AIBrain() {
   const [showPreview, setShowPreview] = useState(false);
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
   const [isRegeneratingText, setIsRegeneratingText] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  const SUGGESTED_TOPICS = [
+    "Como a psicanálise ajuda a lidar com a ansiedade moderna",
+    "O papel do inconsciente nas nossas escolhas diárias",
+    "A importância do autoconhecimento na saúde mental",
+    "Lidando com o luto sob a ótica psicanalítica",
+    "O impacto das redes sociais na psique",
+    "Burnout: Quando o corpo e a mente pedem socorro",
+    "A dinâmica dos relacionamentos e a transferência",
+    "Sonhos: O que eles revelam sobre nossos desejos ocultos",
+    "A jornada da psicoterapia: O que esperar do processo"
+  ];
   
   // Ensure we always have 9 slots for keys
   const [tempKeys, setTempKeys] = useState<string[]>(() => {
@@ -134,58 +147,74 @@ export default function AIBrain() {
         },
       });
 
-      const data = JSON.parse(response.text);
-      
-      // Generate Image Prompt
-      const imagePromptResponse = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Crie um prompt em inglês extremamente detalhado para geração de imagem artística e emocional para um post de blog intitulado: "${data.title}". 
-        A imagem deve ser poética, com composição cinematográfica, usando cores suaves e texturas orgânicas. 
-        O estilo deve ser "contemporary fine art photography", com foco em elementos simbólicos que representem o tema de forma sutil e profunda (ex: luz atravessando uma janela, mãos acolhedoras, elementos da natureza, espaços de calma). 
-        Evite imagens literais de consultórios ou pessoas sofrendo. Busque clareza, esperança e profundidade visual.`,
-      });
-
-      const imagePrompt = imagePromptResponse.text;
-
-      // Generate Image
-      const imageResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: {
-          parts: [{ text: imagePrompt }],
-        },
-        config: {
-          imageConfig: {
-            aspectRatio: "16:9"
-          }
-        }
-      });
-
-      let imageUrl = '';
-      for (const part of imageResponse.candidates[0].content.parts) {
-        if (part.inlineData) {
-          imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-        }
+      let jsonStr = response.text.trim();
+      if (jsonStr.includes('```')) {
+        jsonStr = jsonStr.replace(/```json\n?|```\n?/g, '').trim();
       }
-
+      
+      const data = JSON.parse(jsonStr);
+      
+      // Set initial content so user can see text even if image fails
       const newPost: BlogPost = {
         ...data,
         id: crypto.randomUUID(),
-        imageUrl,
+        imageUrl: '',
         status: 'draft',
         authorId: user.uid,
         authorName: userProfile?.displayName || 'Bruno Lisboa',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-
-      await savePost(newPost);
+      
       setGeneratedContent(newPost);
-      setIsEditing(false);
+      await savePost(newPost);
+
+      // Generate Image Prompt
+      try {
+        const imagePromptResponse = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: `Crie um prompt em inglês extremamente detalhado para geração de imagem artística e emocional para um post de blog intitulado: "${data.title}". 
+          A imagem deve ser poética, com composição cinematográfica, usando cores suaves e texturas orgânicas. 
+          O estilo deve ser "contemporary fine art photography", com foco em elementos simbólicos que representem o tema de forma sutil e profunda (ex: luz atravessando uma janela, mãos acolhedoras, elementos da natureza, espaços de calma). 
+          Evite imagens literais de consultórios ou pessoas sofrendo. Busque clareza, esperança e profundidade visual.`,
+        });
+
+        const imagePrompt = imagePromptResponse.text;
+
+        // Generate Image
+        const imageResponse = await ai.models.generateContent({
+          model: 'gemini-2.5-flash-image',
+          contents: {
+            parts: [{ text: imagePrompt }],
+          },
+          config: {
+            imageConfig: {
+              aspectRatio: "16:9"
+            }
+          }
+        });
+
+        let imageUrl = '';
+        for (const part of imageResponse.candidates[0].content.parts) {
+          if (part.inlineData) {
+            imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+          }
+        }
+
+        if (imageUrl) {
+          const updatedPost = { ...newPost, imageUrl };
+          setGeneratedContent(updatedPost);
+          await savePost(updatedPost);
+        }
+      } catch (imgError) {
+        console.error('Erro na geração da imagem:', imgError);
+        toast.error('O texto foi gerado, mas houve um erro na imagem. Você pode regerá-la depois.');
+      }
 
       toast.success('Conteúdo gerado e salvo como rascunho!');
     } catch (error) {
       console.error('Erro na geração de IA:', error);
-      toast.error('Falha ao gerar conteúdo. Tente novamente.');
+      toast.error('Falha ao gerar conteúdo. Verifique suas chaves de API e tente novamente.');
     } finally {
       setIsGenerating(false);
     }
@@ -280,7 +309,12 @@ export default function AIBrain() {
         },
       });
 
-      const data = JSON.parse(response.text);
+      let jsonStr = response.text.trim();
+      if (jsonStr.includes('```')) {
+        jsonStr = jsonStr.replace(/```json\n?|```\n?/g, '').trim();
+      }
+      
+      const data = JSON.parse(jsonStr);
       setGeneratedContent({
         ...generatedContent,
         ...data,
@@ -444,9 +478,18 @@ export default function AIBrain() {
             </div>
             
             {!isEditing ? (
-              <>
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Tema ou Tópico</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Tema ou Tópico</label>
+                    <button 
+                      onClick={() => setShowSuggestions(!showSuggestions)}
+                      className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                    >
+                      <Sparkles size={12} />
+                      {showSuggestions ? 'Esconder Sugestões' : 'Ver Sugestões'}
+                    </button>
+                  </div>
                   <textarea
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
@@ -454,6 +497,27 @@ export default function AIBrain() {
                     className="w-full h-32 px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white resize-none"
                   />
                 </div>
+
+                {showSuggestions && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-wrap gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800"
+                  >
+                    {SUGGESTED_TOPICS.map((suggestion, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setTopic(suggestion);
+                          setShowSuggestions(false);
+                        }}
+                        className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-[10px] text-slate-600 dark:text-slate-400 hover:border-emerald-500 hover:text-emerald-600 transition-all"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
 
                 {(!settings.geminiKeys || settings.geminiKeys.filter(k => k.trim() !== '').length === 0) && (
                   <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
@@ -481,7 +545,7 @@ export default function AIBrain() {
                     </>
                   )}
                 </button>
-              </>
+              </div>
             ) : (
               <div className="space-y-4">
                 <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -538,9 +602,20 @@ export default function AIBrain() {
                   </button>
                 </div>
                 <div className="absolute top-4 left-4 flex flex-col gap-2">
-                  <span className="px-3 py-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full uppercase tracking-widest self-start">
-                    {generatedContent.category}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full uppercase tracking-widest">
+                      {generatedContent.category}
+                    </span>
+                    <select
+                      value={generatedContent.status}
+                      onChange={(e) => setGeneratedContent({ ...generatedContent, status: e.target.value as any })}
+                      className="px-3 py-1 bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white text-[10px] font-bold rounded-full uppercase tracking-widest border-none outline-none cursor-pointer"
+                    >
+                      <option value="draft">Rascunho</option>
+                      <option value="published">Publicado</option>
+                      <option value="scheduled">Programado</option>
+                    </select>
+                  </div>
                   <span className="px-3 py-1 bg-slate-900/60 backdrop-blur-md text-white text-[10px] font-medium rounded-full flex items-center gap-1 self-start">
                     <Sparkles size={10} />
                     Tema: {topic || "Neuropsicanálise Clínica"}
