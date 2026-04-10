@@ -44,6 +44,8 @@ export default function AIBrain() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [showPreview, setShowPreview] = useState(false);
+  const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
+  const [isRegeneratingText, setIsRegeneratingText] = useState(false);
   
   // Ensure we always have 9 slots for keys
   const [tempKeys, setTempKeys] = useState<string[]>(() => {
@@ -186,6 +188,110 @@ export default function AIBrain() {
       toast.error('Falha ao gerar conteúdo. Tente novamente.');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const regenerateImage = async () => {
+    if (!generatedContent || !generatedContent.title) return;
+    
+    setIsRegeneratingImage(true);
+    try {
+      const ai = getAIInstance();
+      const imagePromptResponse = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Crie um prompt em inglês extremamente detalhado para geração de imagem artística e emocional para um post de blog intitulado: "${generatedContent.title}". 
+        A imagem deve ser poética, com composição cinematográfica, usando cores suaves e texturas orgânicas. 
+        O estilo deve ser "contemporary fine art photography", com foco em elementos simbólicos que representem o tema de forma sutil e profunda. 
+        Evite imagens literais de consultórios ou pessoas sofrendo. Busque clareza, esperança e profundidade visual.`,
+      });
+
+      const imagePrompt = imagePromptResponse.text;
+
+      const imageResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: {
+          parts: [{ text: imagePrompt }],
+        },
+        config: {
+          imageConfig: {
+            aspectRatio: "16:9"
+          }
+        }
+      });
+
+      let imageUrl = '';
+      for (const part of imageResponse.candidates[0].content.parts) {
+        if (part.inlineData) {
+          imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+        }
+      }
+
+      if (imageUrl) {
+        setGeneratedContent({ ...generatedContent, imageUrl });
+        toast.success('Nova imagem gerada!');
+      }
+    } catch (error) {
+      console.error('Erro ao regerar imagem:', error);
+      toast.error('Falha ao regerar imagem.');
+    } finally {
+      setIsRegeneratingImage(false);
+    }
+  };
+
+  const regenerateText = async () => {
+    const promptTopic = topic || generatedContent?.title;
+    if (!generatedContent || !promptTopic) {
+      toast.error('Um tema ou título é necessário para regerar o texto.');
+      return;
+    }
+    
+    setIsRegeneratingText(true);
+    try {
+      const ai = getAIInstance();
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Gere uma nova versão de um post de blog sobre o tema: "${promptTopic}". 
+        O conteúdo deve ser em Português do Brasil, focado em psicologia e psicanálise clínica, sob a perspectiva do profissional Bruno Lisboa.
+        
+        Instruções de Tom e Estilo:
+        - O tom deve ser menos formal, agindo como uma conversa próxima e segura com o leitor.
+        - Use uma linguagem empática que valide os sentimentos do leitor.
+        - O texto deve ser longo, detalhado e transformador (mínimo 1000 palavras).
+        
+        Retorne um JSON com os seguintes campos:
+        - title: Um título humano, sensível e impossível de ignorar
+        - excerpt: Um resumo acolhedor que resuma a essência do texto
+        - content: O conteúdo completo formatado em Markdown impecável
+        - category: Uma categoria relevante
+        - tags: Um array de 5 tags estratégicas`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              excerpt: { type: Type.STRING },
+              content: { type: Type.STRING },
+              category: { type: Type.STRING },
+              tags: { type: Type.ARRAY, items: { type: Type.STRING } },
+            },
+            required: ["title", "excerpt", "content", "category", "tags"],
+          },
+        },
+      });
+
+      const data = JSON.parse(response.text);
+      setGeneratedContent({
+        ...generatedContent,
+        ...data,
+        updatedAt: new Date().toISOString()
+      });
+      toast.success('Texto regerado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao regerar texto:', error);
+      toast.error('Falha ao regerar texto.');
+    } finally {
+      setIsRegeneratingText(false);
     }
   };
 
@@ -412,7 +518,7 @@ export default function AIBrain() {
               animate={{ opacity: 1, scale: 1 }}
               className="bg-white dark:bg-slate-900 rounded-2xl border border-emerald-200 dark:border-emerald-900/30 overflow-hidden shadow-xl"
             >
-              <div className="aspect-video w-full bg-slate-100 dark:bg-slate-800 relative">
+              <div className="aspect-video w-full bg-slate-100 dark:bg-slate-800 relative group/img">
                 {generatedContent.imageUrl && (
                   <img 
                     src={generatedContent.imageUrl} 
@@ -421,6 +527,16 @@ export default function AIBrain() {
                     referrerPolicy="no-referrer"
                   />
                 )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                  <button
+                    onClick={regenerateImage}
+                    disabled={isRegeneratingImage}
+                    className="px-4 py-2 bg-white text-slate-900 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                  >
+                    {isRegeneratingImage ? <Loader2 className="animate-spin" size={14} /> : <ImageIcon size={14} />}
+                    Regerar Imagem
+                  </button>
+                </div>
                 <div className="absolute top-4 left-4 flex flex-col gap-2">
                   <span className="px-3 py-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full uppercase tracking-widest self-start">
                     {generatedContent.category}
@@ -454,7 +570,18 @@ export default function AIBrain() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Conteúdo (Markdown)</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Conteúdo (Markdown)</label>
+                      <button
+                        onClick={regenerateText}
+                        disabled={isRegeneratingText || (!topic && !generatedContent?.title)}
+                        className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 disabled:opacity-50"
+                        title={(!topic && !generatedContent?.title) ? "Um tema ou título é necessário para regerar o texto" : ""}
+                      >
+                        {isRegeneratingText ? <Loader2 className="animate-spin" size={12} /> : <Sparkles size={12} />}
+                        Regerar Texto
+                      </button>
+                    </div>
                     <textarea
                       value={generatedContent.content}
                       onChange={(e) => setGeneratedContent({ ...generatedContent, content: e.target.value })}
@@ -527,6 +654,22 @@ export default function AIBrain() {
                       >
                         <X size={20} />
                         Cancelar
+                      </button>
+                    )}
+                    {isEditing && (
+                      <button
+                        onClick={async () => {
+                          if (confirm('Tem certeza que deseja excluir este post?')) {
+                            await deletePost(generatedContent.id!);
+                            setGeneratedContent(null);
+                            setIsEditing(false);
+                            toast.success('Post excluído com sucesso!');
+                          }
+                        }}
+                        className="py-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-red-100 dark:hover:bg-red-900/30 transition-all"
+                      >
+                        <Trash2 size={20} />
+                        Excluir Post
                       </button>
                     )}
                     {!isEditing && (
