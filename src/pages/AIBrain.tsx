@@ -183,13 +183,14 @@ export default function AIBrain() {
 
         // Generate Image
         const imageResponse = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-image',
+          model: 'gemini-3.1-flash-image-preview',
           contents: {
             parts: [{ text: imagePrompt }],
           },
           config: {
             imageConfig: {
-              aspectRatio: "16:9"
+              aspectRatio: "16:9",
+              imageSize: "1K"
             }
           }
         });
@@ -237,13 +238,14 @@ export default function AIBrain() {
       const imagePrompt = imagePromptResponse.text;
 
       const imageResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
+        model: 'gemini-3.1-flash-image-preview',
         contents: {
           parts: [{ text: imagePrompt }],
         },
         config: {
           imageConfig: {
-            aspectRatio: "16:9"
+            aspectRatio: "16:9",
+            imageSize: "1K"
           }
         }
       });

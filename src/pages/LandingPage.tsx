@@ -338,7 +338,7 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {posts
-              .filter(p => p.status === 'published' && new Date(p.publishedAt || '') <= new Date())
+              .filter(p => p.status === 'published' && new Date(p.publishedAt || p.createdAt) <= new Date())
               .slice(0, 3)
               .map((post) => (
               <motion.article 
@@ -348,13 +348,19 @@ export default function LandingPage() {
                 viewport={{ once: true }}
                 className="bg-white rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all group"
               >
-                <Link to={`/blog/${post.id}`} className="aspect-[16/10] overflow-hidden block">
-                  <img 
-                    src={post.imageUrl} 
-                    alt={post.title} 
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    referrerPolicy="no-referrer"
-                  />
+                <Link to={`/blog/${post.id}`} className="aspect-[16/10] overflow-hidden block bg-slate-100">
+                  {post.imageUrl ? (
+                    <img 
+                      src={post.imageUrl} 
+                      alt={post.title} 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-300">
+                      <BookOpen size={48} />
+                    </div>
+                  )}
                 </Link>
                 <div className="p-8 space-y-4">
                   <div className="flex items-center gap-3">
@@ -362,7 +368,7 @@ export default function LandingPage() {
                       {post.category}
                     </span>
                     <span className="text-xs text-slate-400">
-                      {formatDate(post.publishedAt)}
+                      {formatDate(post.publishedAt || post.createdAt)}
                     </span>
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors line-clamp-2">
@@ -380,7 +386,7 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {posts.filter(p => p.status === 'published' && new Date(p.publishedAt || '') <= new Date()).length > 3 && (
+          {posts.filter(p => p.status === 'published' && new Date(p.publishedAt || p.createdAt) <= new Date()).length > 3 && (
             <div className="text-center pt-12">
               <Link 
                 to="/blog"
@@ -392,7 +398,7 @@ export default function LandingPage() {
             </div>
           )}
 
-          {posts.filter(p => p.status === 'published' && new Date(p.publishedAt || '') <= new Date()).length === 0 && (
+          {posts.filter(p => p.status === 'published' && new Date(p.publishedAt || p.createdAt) <= new Date()).length === 0 && (
             <div className="text-center py-20 text-slate-400">
               <BookOpen size={48} className="mx-auto mb-4 opacity-20" />
               <p>Novos artigos em breve. Fique atento!</p>

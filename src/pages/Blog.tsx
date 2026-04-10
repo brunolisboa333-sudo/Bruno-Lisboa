@@ -24,7 +24,7 @@ export default function Blog() {
 
   const publishedPosts = posts.filter(p => 
     p.status === 'published' && 
-    new Date(p.publishedAt || '') <= new Date()
+    new Date(p.publishedAt || p.createdAt) <= new Date()
   );
 
   const filteredPosts = publishedPosts.filter(post => 
@@ -217,13 +217,19 @@ export default function Blog() {
                   transition={{ delay: index * 0.1 }}
                   className="bg-white rounded-[2.5rem] overflow-hidden border border-slate-100 shadow-sm hover:shadow-2xl transition-all group flex flex-col"
                 >
-                  <Link to={`/blog/${post.id}`} className="aspect-[16/10] overflow-hidden block">
-                    <img 
-                      src={post.imageUrl} 
-                      alt={post.title} 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                      referrerPolicy="no-referrer"
-                    />
+                  <Link to={`/blog/${post.id}`} className="aspect-[16/10] overflow-hidden block bg-slate-100">
+                    {post.imageUrl ? (
+                      <img 
+                        src={post.imageUrl} 
+                        alt={post.title} 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-300">
+                        <BookOpen size={48} />
+                      </div>
+                    )}
                   </Link>
                   <div className="p-8 space-y-4 flex-1 flex flex-col">
                     <div className="flex items-center gap-3">

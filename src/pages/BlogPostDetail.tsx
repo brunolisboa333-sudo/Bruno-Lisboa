@@ -7,7 +7,8 @@ import {
   Share2,
   Clock,
   Sparkles,
-  User
+  User,
+  BookOpen
 } from 'lucide-react';
 import { useStorage } from '../hooks/useStorage';
 import ReactMarkdown from 'react-markdown';
@@ -53,12 +54,18 @@ export default function BlogPostDetail() {
       {/* Hero Section */}
       <section className="pt-20">
         <div className="aspect-[21/9] w-full bg-slate-100 relative overflow-hidden">
-          <img 
-            src={post.imageUrl} 
-            alt={post.title} 
-            className="w-full h-full object-cover"
-            referrerPolicy="no-referrer"
-          />
+          {post.imageUrl ? (
+            <img 
+              src={post.imageUrl} 
+              alt={post.title} 
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-slate-300">
+              <BookOpen size={80} />
+            </div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
           <div className="absolute bottom-12 left-0 right-0 px-6">
             <div className="max-w-4xl mx-auto space-y-6">
@@ -98,7 +105,7 @@ export default function BlogPostDetail() {
               <div className="space-y-4 pt-4 border-t border-slate-200">
                 <div className="flex items-center gap-3 text-slate-500 text-sm">
                   <Calendar size={18} />
-                  {new Date(post.publishedAt || '').toLocaleDateString('pt-BR')}
+                  {new Date(post.publishedAt || post.createdAt).toLocaleDateString('pt-BR')}
                 </div>
                 <div className="flex items-center gap-3 text-slate-500 text-sm">
                   <Clock size={18} />
