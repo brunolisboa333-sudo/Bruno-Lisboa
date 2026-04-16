@@ -12,7 +12,8 @@ import {
   Download,
   X,
   DollarSign,
-  Trash2
+  Trash2,
+  MessageSquare
 } from 'lucide-react';
 import { useStorage } from '../hooks/useStorage';
 import { format } from 'date-fns';
@@ -51,11 +52,12 @@ export default function Records() {
     const sessionValue = parseFloat(formData.get('sessionValue') as string);
     const date = new Date(formData.get('date') as string).toISOString();
     const clinicalNotes = formData.get('clinicalNotes') as string;
+    const transcription = formData.get('transcription') as string;
     const evolution = formData.get('evolution') as string;
     const paid = formData.get('isPaid') === 'on';
 
     if (editingRecord) {
-      await updateRecord(editingRecord.id, { date, clinicalNotes, evolution, sessionValue });
+      await updateRecord(editingRecord.id, { date, clinicalNotes, transcription, evolution, sessionValue });
 
       // Update appointment payment status if linked
       if (editingRecord.appointmentId !== 'manual') {
@@ -82,6 +84,7 @@ export default function Records() {
         appointmentId: matchingApp ? matchingApp.id : 'manual',
         date,
         clinicalNotes,
+        transcription,
         evolution,
         sessionValue,
         userId: user!.uid,
@@ -320,11 +323,23 @@ export default function Records() {
                           </button>
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Observações Clínicas</h4>
-                        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                          {record.clinicalNotes}
-                        </p>
+                      <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Observações Clínicas</h4>
+                          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed uppercase">
+                            {record.clinicalNotes}
+                          </p>
+                        </div>
+                        {record.transcription && (
+                          <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <h4 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-2">
+                              <MessageSquare size={14} /> Transcrição da Sessão
+                            </h4>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed bg-slate-100/50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                              {record.transcription}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -434,6 +449,16 @@ export default function Records() {
                     required 
                     className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" 
                     placeholder="Descreva o que foi trabalhado na sessão..." 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Transcrição da Sessão (Análise IA)</label>
+                  <textarea 
+                    name="transcription" 
+                    rows={4} 
+                    defaultValue={editingRecord ? editingRecord.transcription : ""} 
+                    className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white text-sm" 
+                    placeholder="Cole aqui a transcrição para análise da IA..." 
                   />
                 </div>
                 {canViewFinance && (

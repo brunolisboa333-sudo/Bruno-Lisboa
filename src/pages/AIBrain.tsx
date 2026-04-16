@@ -157,7 +157,7 @@ export default function AIBrain() {
       // Set initial content so user can see text even if image fails
       const newPost: BlogPost = {
         ...data,
-        id: crypto.randomUUID(),
+        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
         imageUrl: '',
         status: 'draft',
         authorId: user.uid,
@@ -180,25 +180,27 @@ export default function AIBrain() {
         });
 
         const imagePrompt = imagePromptResponse.text;
+        console.log('Gerando imagem com prompt:', imagePrompt);
 
         // Generate Image
         const imageResponse = await ai.models.generateContent({
-          model: 'gemini-3.1-flash-image-preview',
-          contents: {
-            parts: [{ text: imagePrompt }],
-          },
+          model: 'gemini-2.5-flash-image',
+          contents: { parts: [{ text: imagePrompt }] },
           config: {
             imageConfig: {
               aspectRatio: "16:9",
-              imageSize: "1K"
             }
           }
         });
 
         let imageUrl = '';
-        for (const part of imageResponse.candidates[0].content.parts) {
-          if (part.inlineData) {
-            imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+        const candidate = imageResponse.candidates?.[0];
+        if (candidate?.content?.parts) {
+          for (const part of candidate.content.parts) {
+            if (part.inlineData) {
+              imageUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+              break;
+            }
           }
         }
 
@@ -208,8 +210,8 @@ export default function AIBrain() {
           await savePost(updatedPost);
         }
       } catch (imgError) {
-        console.error('Erro na geração da imagem:', imgError);
-        toast.error('O texto foi gerado, mas houve um erro na imagem. Você pode regerá-la depois.');
+        console.error('Erro detalhado na geração da imagem:', imgError);
+        toast.error('O texto foi gerado, mas houve um erro na imagem da IA. Você pode tentar regerá-la.');
       }
 
       toast.success('Conteúdo gerado e salvo como rascunho!');
@@ -238,32 +240,35 @@ export default function AIBrain() {
       const imagePrompt = imagePromptResponse.text;
 
       const imageResponse = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-image-preview',
-        contents: {
-          parts: [{ text: imagePrompt }],
-        },
+        model: 'gemini-2.5-flash-image',
+        contents: { parts: [{ text: imagePrompt }] },
         config: {
           imageConfig: {
             aspectRatio: "16:9",
-            imageSize: "1K"
           }
         }
       });
 
       let imageUrl = '';
-      for (const part of imageResponse.candidates[0].content.parts) {
-        if (part.inlineData) {
-          imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+      const candidate = imageResponse.candidates?.[0];
+      if (candidate?.content?.parts) {
+        for (const part of candidate.content.parts) {
+          if (part.inlineData) {
+            imageUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+            break;
+          }
         }
       }
 
       if (imageUrl) {
         setGeneratedContent({ ...generatedContent, imageUrl });
         toast.success('Nova imagem gerada!');
+      } else {
+        toast.error('A IA processou o pedido mas não retornou uma imagem.');
       }
     } catch (error) {
       console.error('Erro ao regerar imagem:', error);
-      toast.error('Falha ao regerar imagem.');
+      toast.error('Falha ao regerar imagem. Verifique as chaves e cota.');
     } finally {
       setIsRegeneratingImage(false);
     }
@@ -343,7 +348,7 @@ export default function AIBrain() {
     
     const newPost: BlogPost = {
       ...generatedContent as BlogPost,
-      id: generatedContent.id || crypto.randomUUID(),
+      id: generatedContent.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
       status: 'published',
       publishedAt: publishDate,
       authorId: (generatedContent as BlogPost).authorId || user.uid,
@@ -365,7 +370,7 @@ export default function AIBrain() {
 
     const draftPost: BlogPost = {
       ...generatedContent as BlogPost,
-      id: generatedContent.id || crypto.randomUUID(),
+      id: generatedContent.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
       status: 'draft',
       publishedAt: undefined,
       authorId: (generatedContent as BlogPost).authorId || user.uid,

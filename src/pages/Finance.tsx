@@ -272,8 +272,8 @@ export default function Finance() {
     >
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Financeiro</h1>
-          <p className="text-slate-500">Controle de faturamento, despesas e lucro real.</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Financeiro Inteligente</h1>
+          <p className="text-slate-500 dark:text-slate-400">Controle de faturamento, despesas e lucro real.</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-4">
@@ -285,7 +285,7 @@ export default function Finance() {
                 className={cn(
                   "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
                   period === p 
-                    ? "bg-white dark:bg-slate-700 text-emerald-600 shadow-sm" 
+                    ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm" 
                     : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                 )}
               >
@@ -315,14 +315,14 @@ export default function Finance() {
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsExpenseModalOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-xl font-medium hover:bg-red-100 transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/30 rounded-xl font-medium hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors shadow-sm"
             >
               <Plus size={20} />
               Nova Despesa
             </button>
             <button 
               onClick={exportToPDF}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-medium hover:bg-slate-50 transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm"
             >
               <Download size={20} />
               Exportar PDF
@@ -333,35 +333,36 @@ export default function Finance() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <div className={cn("p-2 rounded-lg", stat.bg)}>
+              <div className={cn("p-2 rounded-lg", stat.bg, "dark:bg-opacity-20")}>
                 <stat.icon className={stat.color} size={24} />
               </div>
             </div>
-            <p className="text-sm text-slate-500 font-medium">{stat.label}</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">{stat.value}</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{stat.label}</p>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{stat.value}</h3>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-6">Fluxo de Caixa (Faturamento)</h3>
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <h3 className="font-semibold text-slate-900 dark:text-white mb-6">Fluxo de Caixa (Faturamento)</h3>
             <div className="h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={last6Months}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" className="dark:opacity-10" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
                   <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
                   <Tooltip 
                     cursor={{fill: '#f8fafc'}}
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', backgroundColor: 'var(--tw-colors-slate-900)' }}
+                    itemStyle={{ color: '#fff' }}
                   />
                   <Bar dataKey="valor" radius={[6, 6, 0, 0]}>
                     {last6Months.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === last6Months.length - 1 ? '#10b981' : '#e2e8f0'} />
+                      <Cell key={`cell-${index}`} fill={index === last6Months.length - 1 ? '#10b981' : '#e2e8f0'} className="dark:fill-slate-700" />
                     ))}
                   </Bar>
                 </BarChart>
@@ -369,44 +370,44 @@ export default function Finance() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-6">Sessões Agendadas no Período ({sessoesAgendadas})</h3>
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <h3 className="font-semibold text-slate-900 dark:text-white mb-6">Sessões Agendadas no Período ({sessoesAgendadas})</h3>
             <div className="space-y-3">
               {filteredAppointments.filter(a => a.status === 'scheduled').length > 0 ? (
                 filteredAppointments.filter(a => a.status === 'scheduled').sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime()).map(app => (
-                  <div key={app.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <div key={app.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-slate-600 font-bold border border-slate-200">
+                      <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold border border-slate-200 dark:border-slate-600">
                         {app.patientName.charAt(0)}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-900">{app.patientName}</p>
-                        <p className="text-xs text-slate-500">{format(new Date(app.dateTime), "dd/MM 'às' HH:mm")}</p>
+                        <p className="text-sm font-medium text-slate-900 dark:text-white">{app.patientName}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{format(new Date(app.dateTime), "dd/MM 'às' HH:mm")}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-slate-900">R$ {app.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                      <span className="text-[10px] px-2 py-0.5 bg-slate-900 text-white rounded-full font-bold uppercase">Agendada</span>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">R$ {app.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                      <span className="text-[10px] px-2 py-0.5 bg-slate-900 dark:bg-slate-700 text-white rounded-full font-bold uppercase">Agendada</span>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-center py-6 text-slate-500 text-sm">Nenhuma sessão agendada para este período.</p>
+                <p className="text-center py-6 text-slate-500 dark:text-slate-400 text-sm">Nenhuma sessão agendada para este período.</p>
               )}
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold text-slate-900">Sessões por Status de Pagamento</h3>
-              <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+              <h3 className="font-semibold text-slate-900 dark:text-white">Sessões por Status de Pagamento</h3>
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                 <button
                   onClick={() => setPaymentFilter('pending')}
                   className={cn(
                     "px-3 py-1 rounded-lg text-xs font-bold transition-all",
                     paymentFilter === 'pending' 
-                      ? "bg-white text-red-600 shadow-sm" 
-                      : "text-slate-500 hover:text-slate-700"
+                      ? "bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-sm" 
+                      : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                   )}
                 >
                   Pendentes
@@ -416,8 +417,8 @@ export default function Finance() {
                   className={cn(
                     "px-3 py-1 rounded-lg text-xs font-bold transition-all",
                     paymentFilter === 'paid' 
-                      ? "bg-white text-emerald-600 shadow-sm" 
-                      : "text-slate-500 hover:text-slate-700"
+                      ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm" 
+                      : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                   )}
                 >
                   Pagos
@@ -429,56 +430,56 @@ export default function Finance() {
               {paymentFilter === 'pending' ? (
                 filteredAppointments.filter(a => !a.isPaid && (a.status === 'completed' || new Date(a.dateTime) < new Date())).length > 0 ? (
                   filteredAppointments.filter(a => !a.isPaid && (a.status === 'completed' || new Date(a.dateTime) < new Date())).sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()).map(app => (
-                    <div key={app.id} className="flex items-center justify-between p-3 rounded-xl bg-red-50 border border-red-100">
+                    <div key={app.id} className="flex items-center justify-between p-3 rounded-xl bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-red-600 font-bold border border-red-200">
+                        <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-rose-600 dark:text-rose-400 font-bold border border-rose-200 dark:border-rose-900/30">
                           {app.patientName.charAt(0)}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-slate-900">{app.patientName}</p>
-                          <p className="text-xs text-slate-500">{format(new Date(app.dateTime), "dd/MM 'às' HH:mm")}</p>
+                          <p className="text-sm font-medium text-slate-900 dark:text-white">{app.patientName}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{format(new Date(app.dateTime), "dd/MM 'às' HH:mm")}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="text-sm font-bold text-red-600">R$ {app.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                          <span className="text-[10px] px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-bold uppercase">Pendente</span>
+                          <p className="text-sm font-bold text-rose-600 dark:text-rose-400">R$ {app.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                          <span className="text-[10px] px-2 py-0.5 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 rounded-full font-bold uppercase">Pendente</span>
                         </div>
                         <button 
                           onClick={() => handleTogglePayment(app.id)}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-sm text-xs font-bold"
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-sm text-xs font-bold"
                           title="Confirmar Pagamento"
                         >
                           <DollarSign size={14} />
-                          Pagamento Feito
+                          Marcar como Pago
                         </button>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-center py-6 text-slate-500 text-sm">Nenhum pagamento pendente para sessões realizadas.</p>
+                  <p className="text-center py-6 text-slate-500 dark:text-slate-400 text-sm">Nenhum pagamento pendente para sessões realizadas.</p>
                 )
               ) : (
                 filteredAppointments.filter(a => a.isPaid).length > 0 ? (
                   filteredAppointments.filter(a => a.isPaid).sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()).map(app => (
-                    <div key={app.id} className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                    <div key={app.id} className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-emerald-600 font-bold border border-emerald-200">
+                        <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-900/30">
                           {app.patientName.charAt(0)}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-slate-900">{app.patientName}</p>
-                          <p className="text-xs text-slate-500">{format(new Date(app.dateTime), "dd/MM 'às' HH:mm")}</p>
+                          <p className="text-sm font-medium text-slate-900 dark:text-white">{app.patientName}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{format(new Date(app.dateTime), "dd/MM 'às' HH:mm")}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="text-sm font-bold text-emerald-600">R$ {app.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                          <span className="text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-bold uppercase">Pago</span>
+                          <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">R$ {app.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                          <span className="text-[10px] px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full font-bold uppercase">Pago</span>
                         </div>
                         <button 
                           onClick={() => handleTogglePayment(app.id)}
-                          className="p-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 transition-colors shadow-sm"
+                          className="p-2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors shadow-sm"
                           title="Estornar Pagamento"
                         >
                           <X size={18} />
@@ -487,39 +488,39 @@ export default function Finance() {
                     </div>
                   ))
                 ) : (
-                  <p className="text-center py-6 text-slate-500 text-sm">Nenhum pagamento confirmado neste período.</p>
+                  <p className="text-center py-6 text-slate-500 dark:text-slate-400 text-sm">Nenhum pagamento confirmado neste período.</p>
                 )
               )}
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h3 className="font-semibold text-slate-900 mb-6">Últimos Lançamentos</h3>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <h3 className="font-semibold text-slate-900 dark:text-white mb-6">Últimos Lançamentos</h3>
           <div className="space-y-4">
             {recentTransactions.map((transaction) => (
-              <div key={transaction.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors group">
+              <div key={transaction.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group">
                 <div className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center",
-                  transaction.type === 'income' ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
+                  transaction.type === 'income' ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400" : "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
                 )}>
                   {transaction.type === 'income' ? <ArrowUpRight size={20} /> : <ArrowDownRight size={20} />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">
+                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
                     {transaction.title}
                   </p>
-                  <p className="text-xs text-slate-500">{transaction.date}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{transaction.date}</p>
                 </div>
                 <div className="text-right flex items-center gap-3">
                   <div>
                     <p className={cn(
                       "text-sm font-bold",
-                      transaction.type === 'income' ? "text-emerald-600" : "text-red-600"
+                      transaction.type === 'income' ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                     )}>
                       {transaction.type === 'income' ? '+' : '-'} R$ {transaction.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
-                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-bold tracking-wider">
                       {transaction.type === 'income' ? 'Recebido' : 'Pago'}
                     </p>
                   </div>
@@ -530,7 +531,7 @@ export default function Finance() {
                           deleteExpense(transaction.id);
                         }
                       }}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -550,32 +551,32 @@ export default function Finance() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
+              className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
             >
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="text-xl font-bold text-slate-900">Nova Despesa</h3>
-                <button onClick={() => setIsExpenseModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg">
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Nova Despesa</h3>
+                <button onClick={() => setIsExpenseModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
                   <X size={20} />
                 </button>
               </div>
               <form onSubmit={handleAddExpense} className="p-6 space-y-4">
                 <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Descrição</label>
-                  <input name="description" required placeholder="Ex: Aluguel, Supervisão..." className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Descrição</label>
+                  <input name="description" required placeholder="Ex: Aluguel, Supervisão..." className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700">Valor (R$)</label>
-                    <input name="value" type="number" step="0.01" required className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Valor (R$)</label>
+                    <input name="value" type="number" step="0.01" required className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700">Data</label>
-                    <input name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Data</label>
+                    <input name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" />
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Categoria</label>
-                  <select name="category" className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Categoria</label>
+                  <select name="category" className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white">
                     <option value="aluguel">Aluguel</option>
                     <option value="supervisao">Supervisão</option>
                     <option value="marketing">Marketing</option>
@@ -583,10 +584,10 @@ export default function Finance() {
                   </select>
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
-                  <button type="button" onClick={() => setIsExpenseModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-medium transition-colors">
+                  <button type="button" onClick={() => setIsExpenseModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-medium transition-colors">
                     Cancelar
                   </button>
-                  <button type="submit" className="px-6 py-2 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors">
+                  <button type="submit" className="px-6 py-2 bg-red-600 dark:bg-red-500 text-white rounded-xl font-medium hover:bg-red-700 dark:hover:bg-red-600 transition-colors">
                     Salvar Despesa
                   </button>
                 </div>

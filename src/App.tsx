@@ -25,7 +25,9 @@ import {
   Brain,
   Globe,
   BookOpen,
-  ShieldCheck
+  ShieldCheck,
+  UserPlus,
+  Sparkles
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -45,6 +47,9 @@ import LandingPage from './pages/LandingPage';
 import AIBrain from './pages/AIBrain';
 import Blog from './pages/Blog';
 import BlogPostDetail from './pages/BlogPostDetail';
+import ClinicalAI from './pages/ClinicalAI';
+import RegistrationRequests from './pages/RegistrationRequests';
+import PublicRegistration from './pages/PublicRegistration';
 import { useStorage } from './hooks/useStorage';
 import { Navigate } from 'react-router-dom';
 import { Component, ErrorInfo, ReactNode } from 'react';
@@ -109,8 +114,10 @@ const NAV_ITEMS = [
   { path: '/agenda', icon: Calendar, label: 'Agenda', permission: 'view_agenda' },
   { path: '/confirmations', icon: MessageCircle, label: 'Pendências', permission: 'view_confirmations' },
   { path: '/patients', icon: Users, label: 'Pacientes', permission: 'view_patients' },
-  { path: '/finance', icon: Wallet, label: 'Financeiro', permission: 'view_finance' },
+  { path: '/finance', icon: Wallet, label: 'Financeiro Inteligente', permission: 'view_finance' },
   { path: '/records', icon: FileText, label: 'Prontuários', permission: 'view_records' },
+  { path: '/clinical-ai', icon: Sparkles, label: 'IA Clínica', permission: 'view_records' },
+  { path: '/registration-requests', icon: UserPlus, label: 'Pré-Cadastros', permission: 'view_patients' },
   { path: '/aibrain', icon: Brain, label: 'Cérebro de IA', permission: 'admin' },
   { path: '/users', icon: ShieldCheck, label: 'Usuários', permission: 'admin' },
   { path: '/blog', icon: BookOpen, label: 'Ver Blog' },
@@ -447,6 +454,9 @@ function AppContent() {
               <Route path="/settings" element={user && userProfile?.role === 'admin' ? <SettingsPage /> : <Navigate to="/dashboard" />} />
               <Route path="/users" element={user && userProfile?.role === 'admin' ? <UsersPage /> : <Navigate to="/dashboard" />} />
               <Route path="/aibrain" element={user && userProfile?.role === 'admin' ? <AIBrain /> : <Navigate to="/dashboard" />} />
+              <Route path="/clinical-ai" element={user && hasPermission('view_records') ? <ClinicalAI /> : <Navigate to="/dashboard" />} />
+              <Route path="/registration-requests" element={user && hasPermission('view_patients') ? <RegistrationRequests /> : <Navigate to="/dashboard" />} />
+              <Route path="/public-registration" element={<PublicRegistration />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:id" element={<BlogPostDetail />} />
             </Routes>

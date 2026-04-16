@@ -56,9 +56,69 @@
         "clinicalNotes": { "type": "string" },
         "evolution": { "type": "string" },
         "sessionValue": { "type": "number" },
-        "userId": { "type": "string" }
+        "userId": { "type": "string" },
+        "aiInsights": { "type": "string" }
       },
       "required": ["id", "patientId", "appointmentId", "userId"]
+    },
+    "ClinicalEvolutionReport": {
+      "title": "ClinicalEvolutionReport",
+      "description": "AI-generated report on patient evolution",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "patientId": { "type": "string" },
+        "period": { "type": "object", "properties": { "start": { "type": "string" }, "end": { "type": "string" } } },
+        "summary": { "type": "string" },
+        "status": { "type": "string", "enum": ["evoluindo", "estagnado", "regredindo"] },
+        "patterns": { "type": "array", "items": { "type": "string" } },
+        "recommendations": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "patientId", "userId", "createdAt"]
+    },
+    "ClinicalChatSession": {
+      "title": "ClinicalChatSession",
+      "description": "Clinical case discussion chat session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "patientId": { "type": "string" },
+        "theoreticalApproach": { "type": "string" },
+        "messages": { "type": "array", "items": { 
+          "type": "object", 
+          "properties": { 
+            "role": { "type": "string", "enum": ["user", "assistant"] },
+            "content": { "type": "string" },
+            "timestamp": { "type": "string" }
+          } 
+        } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "patientId", "userId", "createdAt"]
+    },
+    "PublicRegistration": {
+      "title": "PublicRegistration",
+      "description": "Registration data submitted via public link",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "birthDate": { "type": "string" },
+        "gender": { "type": "string" },
+        "notes": { "type": "string" },
+        "cpf": { "type": "string" },
+        "address": { "type": "string" },
+        "medications": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "name", "phone", "status", "userId", "createdAt"]
     },
     "Expense": {
       "title": "Expense",
@@ -174,6 +234,18 @@
     "/posts/{postId}": {
       "schema": "BlogPost",
       "description": "Collection of blog posts"
+    },
+    "/clinical_reports/{reportId}": {
+      "schema": "ClinicalEvolutionReport",
+      "description": "Collection of clinical evolution reports"
+    },
+    "/clinical_chats/{chatId}": {
+      "schema": "ClinicalChatSession",
+      "description": "Collection of clinical chat sessions"
+    },
+    "/registrations/{regId}": {
+      "schema": "PublicRegistration",
+      "description": "Collection of public pre-registrations"
     }
   }
 }

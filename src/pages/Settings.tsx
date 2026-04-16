@@ -5,13 +5,16 @@ import {
   Building2,
   DollarSign,
   Save,
-  CheckCircle2
+  CheckCircle2,
+  Link as LinkIcon,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import { useStorage } from '../hooks/useStorage';
 import { toast } from 'sonner';
 
 export default function Settings() {
-  const { settings, saveSettings } = useStorage();
+  const { settings, saveSettings, user } = useStorage();
 
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -31,12 +34,19 @@ export default function Settings() {
     toast.success('Configurações salvas com sucesso');
   };
 
+  const registrationLink = `${window.location.origin}/register?ref=${user?.uid}`;
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(registrationLink);
+    toast.success('Link copiado para a área de transferência!');
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="space-y-6 max-w-4xl mx-auto"
+      className="space-y-6 max-w-4xl mx-auto pb-12"
     >
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -172,6 +182,47 @@ export default function Settings() {
           </button>
         </div>
       </form>
+
+      <div className="bg-emerald-600 dark:bg-emerald-700 rounded-2xl p-6 text-white shadow-xl shadow-emerald-100 dark:shadow-none overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-white/20 backdrop-blur-md rounded-xl border border-white/30">
+              <LinkIcon size={20} />
+            </div>
+            <h3 className="text-xl font-bold">Link de Pré-Cadastro</h3>
+          </div>
+          
+          <p className="text-emerald-50 text-sm mb-6 leading-relaxed max-w-2xl">
+            Compartilhe este link com novos pacientes para que eles preencham as informações cadastrais. 
+            Os dados aparecerão automaticamente na sua aba de "Cadastros Pendentes".
+          </p>
+          
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-4 py-3 text-sm font-mono truncate">
+              {registrationLink}
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={copyToClipboard}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-3 bg-white text-emerald-600 rounded-xl font-bold text-sm hover:bg-emerald-50 transition-all active:scale-95 shadow-lg"
+              >
+                <Copy size={18} />
+                Copiar
+              </button>
+              <a 
+                href={registrationLink}
+                target="_blank"
+                rel="noreferrer"
+                className="p-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl hover:bg-white/30 transition-all active:scale-95"
+                title="Abrir Link"
+              >
+                <ExternalLink size={18} />
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
     </motion.div>
   );
 }

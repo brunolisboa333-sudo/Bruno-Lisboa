@@ -41,9 +41,57 @@ export interface SessionRecord {
   appointmentId: string;
   date: string;
   clinicalNotes: string;
+  transcription?: string; // Added: transcription of the session
   evolution: string; // 1-10 or text
   sessionValue: number; // Added: Individual session value
   userId: string;
+  aiInsights?: string; // Added: AI insights for this specific session
+}
+
+export interface ClinicalEvolutionReport {
+  id: string;
+  patientId: string;
+  period: {
+    start: string;
+    end: string;
+  };
+  summary: string;
+  status: 'evoluindo' | 'estagnado' | 'regredindo';
+  patterns: string[];
+  recommendations: string[];
+  createdAt: string;
+  userId: string;
+}
+
+export interface ClinicalChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export interface ClinicalChatSession {
+  id: string;
+  patientId: string;
+  theoreticalApproach: string;
+  messages: ClinicalChatMessage[];
+  createdAt: string;
+  userId: string;
+}
+
+export interface PublicRegistration {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  birthDate: string;
+  gender: string;
+  notes?: string;
+  cpf?: string;
+  address?: string;
+  medications?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  userId: string; // The professional who generated the link
 }
 
 export interface FinanceReport {

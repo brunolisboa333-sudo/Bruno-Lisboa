@@ -193,5 +193,27 @@ service cloud.firestore {
       allow read: if resource.data.status == 'published' || isAdmin();
       allow write: if isAdmin() && isValidPost(request.resource.data);
     }
+
+    match /clinical_reports/{reportId} {
+      allow read: if (isDocOwner() && isAuthorized()) || isAdmin();
+      allow create: if (isNewDocOwner() && isAuthorized() && hasRequiredFields(['id', 'patientId', 'userId', 'createdAt'])) || isAdmin();
+      allow update: if (isDocOwner() && isAuthorized() && request.resource.data.userId == resource.data.userId) || isAdmin();
+      allow delete: if (isDocOwner() && isAuthorized()) || isAdmin();
+    }
+
+    match /clinical_chats/{chatId} {
+      allow read: if (isDocOwner() && isAuthorized()) || isAdmin();
+      allow create: if (isNewDocOwner() && isAuthorized() && hasRequiredFields(['id', 'patientId', 'userId', 'createdAt'])) || isAdmin();
+      allow update: if (isDocOwner() && isAuthorized() && request.resource.data.userId == resource.data.userId) || isAdmin();
+      allow delete: if (isDocOwner() && isAuthorized()) || isAdmin();
+    }
+
+    match /registrations/{regId} {
+      allow create: if hasRequiredFields(['id', 'name', 'phone', 'status', 'userId', 'createdAt']) &&
+                    request.resource.data.status == 'pending';
+      allow read: if (isNewDocOwner() && isAuthorized()) || (resource.data.userId == request.auth.uid) || isAdmin();
+      allow update: if (isAdmin() || (resource.data.userId == request.auth.uid && isAuthorized()));
+      allow delete: if isAdmin() || (resource.data.userId == request.auth.uid && isAuthorized());
+    }
   }
 }

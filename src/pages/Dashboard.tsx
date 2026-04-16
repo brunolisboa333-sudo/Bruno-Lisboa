@@ -16,7 +16,8 @@ import {
   AlertCircle,
   DollarSign,
   Bell,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles
 } from 'lucide-react';
 import { useStorage } from '../hooks/useStorage';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, subDays } from 'date-fns';
@@ -230,6 +231,42 @@ export default function Dashboard() {
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, 5);
 
+  const birthdaysThisWeek = patients.filter(p => {
+    if (!p.birthDate) return false;
+    // Check if birthDate (DD/MM/AAAA or YYYY-MM-DD) falls in current week
+    try {
+      let bDate;
+      if (p.birthDate.includes('/')) {
+        const [d, m] = p.birthDate.split('/');
+        bDate = new Date(today.getFullYear(), parseInt(m) - 1, parseInt(d));
+      } else {
+        const d = new Date(p.birthDate);
+        bDate = new Date(today.getFullYear(), d.getUTCMonth(), d.getUTCDate());
+      }
+      return bDate >= weekStart && bDate <= weekEnd;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const [generatingMessageId, setGeneratingMessageId] = useState<string | null>(null);
+
+  const handleGenerateBirthdayMessage = async (patientName: string, phone: string) => {
+    setGeneratingMessageId(patientName);
+    try {
+      const { generateBirthdayMessage } = await import('../lib/gemini');
+      const message = await generateBirthdayMessage(patientName);
+      const cleanPhone = phone.replace(/\D/g, '');
+      window.open(`https://wa.me/55${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
+      toast.success('Mensagem de aniversário gerada!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao gerar mensagem de aniversário.');
+    } finally {
+      setGeneratingMessageId(null);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -327,6 +364,38 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {birthdaysThisWeek.length > 0 && (
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 rounded-2xl text-white shadow-xl shadow-emerald-200 dark:shadow-none relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+            <h3 className="font-bold flex items-center gap-2 mb-4">
+              <Sparkles size={18} />
+              Aniversariantes da Semana
+            </h3>
+            <div className="space-y-4">
+               {birthdaysThisWeek.map(p => (
+                 <div key={p.id} className="flex items-center justify-between bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20">
+                   <div>
+                     <p className="text-sm font-bold uppercase">{p.name}</p>
+                     <p className="text-[10px] text-white/70">{p.birthDate}</p>
+                   </div>
+                   <button 
+                     onClick={() => handleGenerateBirthdayMessage(p.name, p.phone)}
+                     disabled={!!generatingMessageId}
+                     className="bg-white text-emerald-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-50 transition-colors flex items-center gap-1 shadow-md"
+                   >
+                     {generatingMessageId === p.name ? (
+                       <div className="w-3 h-3 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
+                     ) : (
+                       <MessageCircle size={14} />
+                     )}
+                     Mensagem IA
+                   </button>
+                 </div>
+               ))}
+            </div>
+          </div>
+        )}
+
         {canViewFinance && (
           <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between mb-6">

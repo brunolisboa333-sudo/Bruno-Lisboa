@@ -16,9 +16,19 @@ import { toast } from 'sonner';
 
 export default function BlogPostDetail() {
   const { id } = useParams<{ id: string }>();
-  const { settings, posts } = useStorage();
+  const { settings, posts, loading } = useStorage();
 
   const post = posts.find(p => p.id === id);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin text-emerald-600">
+          <BookOpen size={48} />
+        </div>
+      </div>
+    );
+  }
 
   if (!post) {
     return <Navigate to="/blog" />;
@@ -125,7 +135,7 @@ export default function BlogPostDetail() {
             <div className="p-6 border border-slate-100 rounded-3xl space-y-4">
               <h4 className="font-bold text-slate-900 text-sm uppercase tracking-widest">Tags</h4>
               <div className="flex flex-wrap gap-2">
-                {post.tags.map((tag, i) => (
+                {(post.tags || []).map((tag, i) => (
                   <span key={i} className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-medium">
                     #{tag}
                   </span>
@@ -137,7 +147,7 @@ export default function BlogPostDetail() {
           {/* Main Content */}
           <main className="lg:col-span-3 space-y-12">
             <div className="markdown-body max-w-none">
-              <ReactMarkdown>{post.content}</ReactMarkdown>
+              <ReactMarkdown>{post.content || ''}</ReactMarkdown>
             </div>
 
             <div className="pt-12 border-t border-slate-100 flex items-center justify-between">

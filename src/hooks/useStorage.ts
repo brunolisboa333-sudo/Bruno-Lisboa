@@ -21,7 +21,7 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { db, auth } from '../firebase';
-import { Patient, Appointment, SessionRecord, Expense, ClinicSettings, UserProfile, PendingInvitation, BlogPost } from '../types';
+import { Patient, Appointment, SessionRecord, Expense, ClinicSettings, UserProfile, PendingInvitation, BlogPost, ClinicalEvolutionReport, ClinicalChatSession, PublicRegistration } from '../types';
 import { toast } from 'sonner';
 
 enum OperationType {
@@ -98,6 +98,9 @@ export function useStorage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [clinicalReports, setClinicalReports] = useState<ClinicalEvolutionReport[]>([]);
+  const [clinicalChats, setClinicalChats] = useState<ClinicalChatSession[]>([]);
+  const [registrations, setRegistrations] = useState<PublicRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -238,6 +241,21 @@ export function useStorage() {
       setExpenses(snapshot.docs.map(doc => doc.data() as Expense));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'expenses'));
 
+    const qReports = query(collection(db, 'clinical_reports'), where('userId', '==', userId));
+    const unsubscribeReports = onSnapshot(qReports, (snapshot) => {
+      setClinicalReports(snapshot.docs.map(doc => doc.data() as ClinicalEvolutionReport));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'clinical_reports'));
+
+    const qChats = query(collection(db, 'clinical_chats'), where('userId', '==', userId));
+    const unsubscribeChats = onSnapshot(qChats, (snapshot) => {
+      setClinicalChats(snapshot.docs.map(doc => doc.data() as ClinicalChatSession));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'clinical_chats'));
+
+    const qRegistrations = query(collection(db, 'registrations'), where('userId', '==', userId));
+    const unsubscribeRegistrations = onSnapshot(qRegistrations, (snapshot) => {
+      setRegistrations(snapshot.docs.map(doc => doc.data() as PublicRegistration));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'registrations'));
+
     // If admin, fetch all users
     let unsubscribeAllUsers = () => {};
     if (userProfile.role === 'admin') {
@@ -252,6 +270,9 @@ export function useStorage() {
       unsubscribeAppointments();
       unsubscribeRecords();
       unsubscribeExpenses();
+      unsubscribeReports();
+      unsubscribeChats();
+      unsubscribeRegistrations();
       unsubscribeAllUsers();
     };
   }, [user, userProfile]);
@@ -441,6 +462,70 @@ export function useStorage() {
     }
   };
 
+  const addClinicalReport = async (report: ClinicalEvolutionReport) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'clinical_reports', report.id), cleanData({ ...report, userId: user.uid }));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `clinical_reports/${report.id}`);
+    }
+  };
+
+  const deleteClinicalReport = async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'clinical_reports', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `clinical_reports/${id}`);
+    }
+  };
+
+  const saveClinicalChat = async (chat: ClinicalChatSession) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'clinical_chats', chat.id), cleanData({ ...chat, userId: user.uid }));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `clinical_chats/${chat.id}`);
+    }
+  };
+
+  const deleteClinicalChat = async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'clinical_chats', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `clinical_chats/${id}`);
+    }
+  };
+
+  const addPublicRegistration = async (registration: PublicRegistration) => {
+    try {
+      await setDoc(doc(db, 'registrations', registration.id), cleanData(registration));
+      toast.success('Pré-cadastro realizado com sucesso! Aguarde o contato do profissional.');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `registrations/${registration.id}`);
+    }
+  };
+
+  const updateRegistrationStatus = async (id: string, status: 'approved' | 'rejected') => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'registrations', id), cleanData({ status }), { merge: true });
+      toast.success(`Cadastro ${status === 'approved' ? 'aprovado' : 'rejeitado'}`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `registrations/${id}`);
+    }
+  };
+
+  const deleteRegistration = async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'registrations', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `registrations/${id}`);
+    }
+  };
+
   const login = async () => {
     const provider = new GoogleAuthProvider();
     try {
@@ -545,6 +630,9 @@ export function useStorage() {
     expenses,
     settings,
     posts,
+    clinicalReports,
+    clinicalChats,
+    registrations,
     user,
     userProfile,
     allUsers,
@@ -561,6 +649,13 @@ export function useStorage() {
     saveSettings,
     savePost,
     deletePost,
+    addClinicalReport,
+    deleteClinicalReport,
+    saveClinicalChat,
+    deleteClinicalChat,
+    addPublicRegistration,
+    updateRegistrationStatus,
+    deleteRegistration,
     deletePatient,
     deleteAppointment,
     deleteRecord,
