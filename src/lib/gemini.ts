@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { SessionRecord, ClinicalEvolutionReport, ClinicalChatMessage } from "../types";
+import { SessionRecord, ClinicalEvolutionReport, ClinicalChatMessage, ClinicSettings } from "../types";
 
 let currentApiKey = process.env.GEMINI_API_KEY || "";
 
@@ -7,13 +7,20 @@ export const setGeminiApiKey = (key: string) => {
   currentApiKey = key;
 };
 
-const getAI = () => new GoogleGenAI({ apiKey: currentApiKey });
+export const getBestApiKey = (settings: ClinicSettings): string | undefined => {
+  const keys = settings.geminiKeys?.filter(k => k.trim() !== '') || [];
+  if (keys.length > 0) {
+    return keys[Math.floor(Math.random() * keys.length)];
+  }
+  return process.env.GEMINI_API_KEY;
+};
 
 export async function analyzeEvolution(
   patientName: string,
-  records: SessionRecord[]
+  records: SessionRecord[],
+  apiKey?: string
 ): Promise<Partial<ClinicalEvolutionReport>> {
-  const ai = getAI();
+  const ai = new GoogleGenAI({ apiKey: apiKey || currentApiKey });
   const model = "gemini-3.1-pro-preview";
   
   const recordsSummary = records.map(r => `Data: ${r.date}\nEvolução: ${r.evolution}/10\nNotas Clínicas: ${r.clinicalNotes}${r.transcription ? `\nTranscrição: ${r.transcription}` : ''}`).join('\n\n');
@@ -38,15 +45,21 @@ export async function analyzeEvolution(
     }
   });
 
-  return JSON.parse(response.text || "{}");
+  let jsonStr = response.text || "{}";
+  if (jsonStr.includes('```')) {
+    jsonStr = jsonStr.replace(/```json\n?|```\n?/g, '').trim();
+  }
+
+  return JSON.parse(jsonStr);
 }
 
 export async function getClinicalChatResponse(
   messages: ClinicalChatMessage[],
   context: string,
-  approach: string
+  approach: string,
+  apiKey?: string
 ): Promise<string> {
-  const ai = getAI();
+  const ai = new GoogleGenAI({ apiKey: apiKey || currentApiKey });
   const model = "gemini-3.1-pro-preview";
   
   const systemInstruction = `Você é um assistente de supervisão clínica para psicólogos e psicanalistas. 
@@ -59,7 +72,10 @@ Seja profissional, ético e empático.`;
 
   const response = await ai.models.generateContent({
     model,
-    contents: messages.map(m => ({ role: m.role, parts: [{ text: m.content }] })),
+    contents: messages.map(m => ({ 
+      role: m.role === 'assistant' ? 'model' : 'user', 
+      parts: [{ text: m.content }] 
+    })),
     config: {
       systemInstruction
     }
@@ -68,8 +84,8 @@ Seja profissional, ético e empático.`;
   return response.text || "Desculpe, não consegui processar sua solicitação.";
 }
 
-export async function generateBirthdayMessage(patientName: string): Promise<string> {
-  const ai = getAI();
+export async function generateBirthdayMessage(patientName: string, apiKey?: string): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey: apiKey || currentApiKey });
   const model = "gemini-3-flash-preview";
   
   const prompt = `Gere uma mensagem curta e carinhosa de aniversário para o paciente ${patientName} enviada pelo seu terapeuta (Bruno Lisboa). A mensagem deve ser profissional mas acolhedora.`;

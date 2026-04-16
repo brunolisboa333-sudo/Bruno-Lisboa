@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useStorage } from '../hooks/useStorage';
 import { SessionRecord, ClinicalEvolutionReport, ClinicalChatSession, ClinicalChatMessage } from '../types';
-import { analyzeEvolution, getClinicalChatResponse } from '../lib/gemini';
+import { analyzeEvolution, getClinicalChatResponse, getBestApiKey } from '../lib/gemini';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -25,7 +25,7 @@ import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
 
 export default function ClinicalAI() {
-  const { patients, records, clinicalReports, clinicalChats, addClinicalReport, saveClinicalChat, user } = useStorage();
+  const { patients, records, clinicalReports, clinicalChats, addClinicalReport, saveClinicalChat, user, settings } = useStorage();
   const [activeTab, setActiveTab] = useState<'evolution' | 'chat'>('evolution');
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   
@@ -52,7 +52,8 @@ export default function ClinicalAI() {
 
     setIsAnalyzing(true);
     try {
-      const result = await analyzeEvolution(selectedPatient.name, patientRecords);
+      const apiKey = getBestApiKey(settings);
+      const result = await analyzeEvolution(selectedPatient.name, patientRecords, apiKey);
       const newReport: ClinicalEvolutionReport = {
         id: Math.random().toString(36).substr(2, 9),
         patientId: selectedPatientId,
@@ -95,7 +96,8 @@ export default function ClinicalAI() {
 
     try {
       const recordsText = patientRecords.map(r => `Data: ${r.date}${r.sessionValue ? `, Valor: R$ ${r.sessionValue}` : ''}\nNota Clínica: ${r.clinicalNotes}${r.transcription ? `\nTranscrição: ${r.transcription}` : ''}`).join('\n\n---\n\n');
-      const response = await getClinicalChatResponse(newMessages, recordsText, chatApproach);
+      const apiKey = getBestApiKey(settings);
+      const response = await getClinicalChatResponse(newMessages, recordsText, chatApproach, apiKey);
       
       const assistantMessage: ClinicalChatMessage = {
         role: 'assistant',

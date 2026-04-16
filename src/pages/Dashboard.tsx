@@ -254,8 +254,9 @@ export default function Dashboard() {
   const handleGenerateBirthdayMessage = async (patientName: string, phone: string) => {
     setGeneratingMessageId(patientName);
     try {
-      const { generateBirthdayMessage } = await import('../lib/gemini');
-      const message = await generateBirthdayMessage(patientName);
+      const { generateBirthdayMessage, getBestApiKey } = await import('../lib/gemini');
+      const apiKey = getBestApiKey(settings);
+      const message = await generateBirthdayMessage(patientName, apiKey);
       const cleanPhone = phone.replace(/\D/g, '');
       window.open(`https://wa.me/55${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
       toast.success('Mensagem de aniversário gerada!');
