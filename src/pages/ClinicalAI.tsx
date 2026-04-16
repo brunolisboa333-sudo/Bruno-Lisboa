@@ -71,9 +71,12 @@ export default function ClinicalAI() {
       await addClinicalReport(newReport);
       setSelectedReport(newReport);
       toast.success('Relatório de evolução gerado com sucesso!');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error('Erro ao gerar análise de evolução.');
+      const errorMessage = error?.message?.includes('API_KEY_INVALID') 
+        ? 'Chave de API inválida. Verifique em "Cérebro de IA > Chaves API".' 
+        : error?.message || 'Erro desconhecido.';
+      toast.error(`Erro ao gerar análise de evolução: ${errorMessage}`);
     } finally {
       setIsAnalyzing(false);
     }
@@ -118,9 +121,12 @@ export default function ClinicalAI() {
         userId: user!.uid
       };
       await saveClinicalChat(chatSession);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error('Erro ao processar mensagem do chat.');
+      const errorMessage = error?.message?.includes('API_KEY_INVALID') 
+        ? 'Chave de API inválida. Verifique em "Cérebro de IA > Chaves API".' 
+        : error?.message || 'Erro desconhecido.';
+      toast.error(`Erro ao processar chat: ${errorMessage}`);
     } finally {
       setIsChatLoading(false);
     }
