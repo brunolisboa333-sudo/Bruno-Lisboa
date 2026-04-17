@@ -146,7 +146,8 @@
         "defaultSessionValue": { "type": "number" },
         "whatsapp": { "type": "string" },
         "email": { "type": "string" },
-        "bio": { "type": "string" }
+        "bio": { "type": "string" },
+        "heroImageUrl": { "type": "string" }
       }
     },
     "BlogPost": {

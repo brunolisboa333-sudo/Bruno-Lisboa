@@ -35,8 +35,10 @@ const POSTS_PER_PAGE = 6;
 
 export default function AIBrain() {
   const { posts, savePost, deletePost, user, userProfile, settings, saveSettings } = useStorage();
-  const [activeTab, setActiveTab] = useState<'generator' | 'settings'>('generator');
+  const [activeTab, setActiveTab] = useState<'generator' | 'settings' | 'media'>('generator');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingHero, setIsGeneratingHero] = useState(false);
+  const [heroPrompt, setHeroPrompt] = useState('Uma imagem artística e minimalista que representa calma, acolhimento e equilíbrio mental.');
   const [topic, setTopic] = useState('');
   const [generatedContent, setGeneratedContent] = useState<Partial<BlogPost> | null>(null);
   const [scheduledDate, setScheduledDate] = useState<string>('');
@@ -87,6 +89,61 @@ export default function AIBrain() {
     }
     
     return new GoogleGenAI({ apiKey: selectedKey });
+  };
+
+  const generateAIImage = async (prompt: string, aspectRatio: "1:1" | "3:4" | "4:3" | "9:16" | "16:9" = "16:9") => {
+    const ai = getAIInstance();
+    const model = "gemini-3.1-flash-image-preview"; // Upgraded for higher quality and cinematic results
+    
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: { parts: [{ text: prompt }] },
+        config: {
+          imageConfig: {
+            aspectRatio,
+            imageSize: "1K" // High quality default
+          }
+        }
+      });
+
+      let imageUrl = '';
+      const candidate = response.candidates?.[0];
+      if (candidate?.content?.parts) {
+        for (const part of candidate.content.parts) {
+          if (part.inlineData) {
+            imageUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+            break;
+          }
+        }
+      }
+      return imageUrl;
+    } catch (error) {
+      console.error('Erro na geração de imagem IA:', error);
+      // Fallback to simpler model if the preview one fails
+      try {
+        const fallbackModel = "gemini-2.5-flash-image";
+        const fallbackResponse = await ai.models.generateContent({
+          model: fallbackModel,
+          contents: { parts: [{ text: prompt }] },
+          config: { imageConfig: { aspectRatio } }
+        });
+        
+        let fbImageUrl = '';
+        const fbCandidate = fallbackResponse.candidates?.[0];
+        if (fbCandidate?.content?.parts) {
+          for (const part of fbCandidate.content.parts) {
+            if (part.inlineData) {
+              fbImageUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+              break;
+            }
+          }
+        }
+        return fbImageUrl;
+      } catch (fbError) {
+        throw fbError;
+      }
+    }
   };
 
   const totalPages = Math.ceil(posts.length / POSTS_PER_PAGE);
@@ -173,36 +230,21 @@ export default function AIBrain() {
       try {
         const imagePromptResponse = await ai.models.generateContent({
           model: "gemini-3-flash-preview",
-          contents: `Crie um prompt em inglês extremamente detalhado para geração de imagem artística e emocional para um post de blog intitulado: "${data.title}". 
-          A imagem deve ser poética, com composição cinematográfica, usando cores suaves e texturas orgânicas. 
-          O estilo deve ser "contemporary fine art photography", com foco em elementos simbólicos que representem o tema de forma sutil e profunda (ex: luz atravessando uma janela, mãos acolhedoras, elementos da natureza, espaços de calma). 
-          Evite imagens literais de consultórios ou pessoas sofrendo. Busque clareza, esperança e profundidade visual.`,
+          contents: `Create an extremely detailed professional English prompt for a visually impactful and relevant image for a blog post titled: "${data.title}". 
+          
+          Technical Requirements:
+          - Style: Professional fine art photography with cinematic composition.
+          - Lighting: High-end film lighting (rembrandt lighting or soft natural light).
+          - Depth: Shallow depth of field with beautiful bokeh.
+          - Vibe: Deeply emotional, poetic, and sophisticated.
+          - Subject: Use symbolic elements of clinical psychology and neuropsychoanalysis. 
+          - Concept: Represent the human mind using abstract but clear metaphors (e.g., neural pathways as light, deep water, complex architecture of thought, mirrors, shadows and light).
+          - Avoid: Generic images of people crying, doctor's offices, or fake smiles.
+          - Goal: A masterpiece image that commands attention.`,
         });
 
         const imagePrompt = imagePromptResponse.text;
-        console.log('Gerando imagem com prompt:', imagePrompt);
-
-        // Generate Image
-        const imageResponse = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-image',
-          contents: { parts: [{ text: imagePrompt }] },
-          config: {
-            imageConfig: {
-              aspectRatio: "16:9",
-            }
-          }
-        });
-
-        let imageUrl = '';
-        const candidate = imageResponse.candidates?.[0];
-        if (candidate?.content?.parts) {
-          for (const part of candidate.content.parts) {
-            if (part.inlineData) {
-              imageUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
-              break;
-            }
-          }
-        }
+        const imageUrl = await generateAIImage(imagePrompt, "16:9");
 
         if (imageUrl) {
           const updatedPost = { ...newPost, imageUrl };
@@ -231,40 +273,18 @@ export default function AIBrain() {
       const ai = getAIInstance();
       const imagePromptResponse = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Crie um prompt em inglês extremamente detalhado para geração de imagem artística e emocional para um post de blog intitulado: "${generatedContent.title}". 
-        A imagem deve ser poética, com composição cinematográfica, usando cores suaves e texturas orgânicas. 
-        O estilo deve ser "contemporary fine art photography", com foco em elementos simbólicos que representem o tema de forma sutil e profunda. 
-        Evite imagens literais de consultórios ou pessoas sofrendo. Busque clareza, esperança e profundidade visual.`,
+        contents: `Create a new, even more visually impactful English prompt for an artistic image for a blog post titled: "${generatedContent.title}". 
+        Focus on powerful psychological metaphors and sophisticated cinematic photography. Be creative and avoid clichés.`,
       });
 
       const imagePrompt = imagePromptResponse.text;
-
-      const imageResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: { parts: [{ text: imagePrompt }] },
-        config: {
-          imageConfig: {
-            aspectRatio: "16:9",
-          }
-        }
-      });
-
-      let imageUrl = '';
-      const candidate = imageResponse.candidates?.[0];
-      if (candidate?.content?.parts) {
-        for (const part of candidate.content.parts) {
-          if (part.inlineData) {
-            imageUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
-            break;
-          }
-        }
-      }
+      const imageUrl = await generateAIImage(imagePrompt, "16:9");
 
       if (imageUrl) {
         setGeneratedContent({ ...generatedContent, imageUrl });
         toast.success('Nova imagem gerada!');
       } else {
-        toast.error('A IA processou o pedido mas não retornou uma imagem.');
+        toast.error('A IA não retornou uma imagem.');
       }
     } catch (error) {
       console.error('Erro ao regerar imagem:', error);
@@ -431,6 +451,34 @@ export default function AIBrain() {
     setActiveTab('generator');
   };
 
+  const handleGenerateHeroImage = async () => {
+    setIsGeneratingHero(true);
+    try {
+      const ai = getAIInstance();
+      const imagePromptResponse = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Create a professional high-end English prompt for a website hero image. 
+        Theme: ${heroPrompt}. 
+        Style: Masterpiece fine art photography, cinematic wide-angle shot, extremely high detail. 
+        Aesthetic: Therapeutic, calm, premium, sophisticated, psychological depth. 
+        Format: Horizontal 16:9 wide shot.`,
+      });
+
+      const imagePrompt = imagePromptResponse.text;
+      const imageUrl = await generateAIImage(imagePrompt, "16:9");
+
+      if (imageUrl) {
+        await saveSettings({ ...settings, heroImageUrl: imageUrl });
+        toast.success('Imagem de destaque do site atualizada!');
+      }
+    } catch (error) {
+      console.error('Erro ao gerar imagem do site:', error);
+      toast.error('Falha ao gerar imagem do site.');
+    } finally {
+      setIsGeneratingHero(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -471,8 +519,97 @@ export default function AIBrain() {
             <Key size={18} />
             Chaves API
           </button>
+          <button
+            onClick={() => setActiveTab('media')}
+            className={cn(
+              "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
+              activeTab === 'media' 
+                ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm" 
+                : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            )}
+          >
+            <ImageIcon size={18} />
+            Mídia do Site
+          </button>
         </div>
       </div>
+
+      {activeTab === 'media' && (
+        <div className="max-w-4xl mx-auto space-y-8">
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm space-y-8">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Globe className="text-emerald-500" />
+                Imagem de Destaque do Site
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400">Personalize a primeira imagem que seus pacientes veem ao entrar no seu site.</p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              <div className="aspect-[4/5] rounded-3xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 relative group">
+                {settings.heroImageUrl ? (
+                  <img 
+                    src={settings.heroImageUrl} 
+                    alt="Hero Preview" 
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-4 p-8 text-center">
+                    <ImageIcon size={48} className="opacity-20" />
+                    <p className="text-xs">Nenhuma imagem personalizada. O site está usando o padrão (Picsum).</p>
+                  </div>
+                )}
+                {isGeneratingHero && (
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-white gap-4">
+                    <Loader2 className="animate-spin text-emerald-400" size={32} />
+                    <p className="text-sm font-medium animate-pulse">A IA está criando sua obra prima...</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                    <Sparkles size={16} className="text-emerald-500" />
+                    Como você imagina a imagem?
+                  </label>
+                  <textarea
+                    value={heroPrompt}
+                    onChange={(e) => setHeroPrompt(e.target.value)}
+                    placeholder="Descreva o sentimento, cores ou elementos que deseja ver na imagem principal do seu site..."
+                    className="w-full h-40 px-4 py-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white resize-none text-sm leading-relaxed"
+                  />
+                </div>
+
+                <div className="space-y-4">
+                  <button
+                    onClick={handleGenerateHeroImage}
+                    disabled={isGeneratingHero}
+                    className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 dark:shadow-none disabled:opacity-50"
+                  >
+                    {isGeneratingHero ? (
+                      <>
+                        <Loader2 className="animate-spin" size={20} />
+                        Gerando Nova Arte...
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon size={20} />
+                        Gerar e Aplicar ao Site
+                      </>
+                    )}
+                  </button>
+                  
+                  <p className="text-[10px] text-slate-400 text-center px-4">
+                    * A geração pode levar alguns segundos. Ao concluir, a imagem será automaticamente salva e exibida na página inicial do seu site.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'generator' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

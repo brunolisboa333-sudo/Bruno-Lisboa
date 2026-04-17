@@ -92,6 +92,7 @@ export function useStorage() {
     defaultSessionValue: 150,
     whatsapp: '31 999215840',
     email: 'brunolisboapsi@gmail.com',
+    heroImageUrl: '',
     geminiKeys: []
   });
   const [user, setUser] = useState<User | null>(null);

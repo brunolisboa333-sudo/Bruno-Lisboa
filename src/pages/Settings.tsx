@@ -29,6 +29,8 @@ export default function Settings() {
       whatsapp: formData.get('whatsapp') as string,
       email: formData.get('email') as string,
       bio: formData.get('bio') as string,
+      heroImageUrl: formData.get('heroImageUrl') as string,
+      geminiKeys: settings.geminiKeys
     });
     
     toast.success('Configurações salvas com sucesso');
@@ -144,6 +146,16 @@ export default function Settings() {
                 placeholder="Conte um pouco sobre sua trajetória e abordagem..."
                 className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white resize-none" 
               />
+            </div>
+            <div className="col-span-full space-y-1">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">URL da Imagem de Destaque (Site)</label>
+              <input 
+                name="heroImageUrl" 
+                defaultValue={settings.heroImageUrl} 
+                placeholder="https://exemplo.com/imagem.jpg"
+                className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white" 
+              />
+              <p className="text-[10px] text-slate-500 italic">Dica: Você pode gerar esta imagem usando a IA na aba "Cérebro de IA" &gt; "Mídia do Site".</p>
             </div>
           </div>
         </div>

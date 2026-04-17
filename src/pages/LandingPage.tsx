@@ -227,8 +227,8 @@ export default function LandingPage() {
           >
             <div className="aspect-[4/5] rounded-[2rem] overflow-hidden shadow-2xl">
               <img 
-                src="https://picsum.photos/seed/psychology/800/1000" 
-                alt="Bruno Lisboa" 
+                src={settings.heroImageUrl || "https://picsum.photos/seed/psychology/800/1000"} 
+                alt={settings.professionalName || 'Bruno Lisboa'} 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />

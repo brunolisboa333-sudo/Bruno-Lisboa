@@ -119,6 +119,7 @@ export interface ClinicSettings {
   whatsapp?: string;
   email?: string;
   bio?: string;
+  heroImageUrl?: string;
   geminiKeys?: string[];
 }
 
