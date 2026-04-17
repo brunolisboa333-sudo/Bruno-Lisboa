@@ -60,7 +60,7 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && 
         (
-          (request.auth.token.email == "brunolisboa333@gmail.com") ||
+          (request.auth.token.email == "brunolisboa333@gmail.com" && request.auth.token.email_verified == true) ||
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
         );
     }
@@ -68,7 +68,7 @@ service cloud.firestore {
     function isAuthorized() {
       return isAuthenticated() && 
         (
-          (request.auth.token.email == "brunolisboa333@gmail.com") ||
+          (request.auth.token.email == "brunolisboa333@gmail.com" && request.auth.token.email_verified == true) ||
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'authorized')
         );
     }
@@ -113,18 +113,26 @@ service cloud.firestore {
              data.userId is string;
     }
 
-    function isValidPost(data) {
-      return hasRequiredFields(['id', 'title', 'content', 'excerpt', 'imageUrl', 'category', 'tags', 'status', 'authorId', 'createdAt']) &&
+    function isValidClinicalChat(data) {
+      return hasRequiredFields(['id', 'patientId', 'userId', 'createdAt', 'messages', 'theoreticalApproach']) &&
              data.id is string &&
-             data.title is string && data.title.size() > 0 &&
-             data.content is string && data.content.size() > 0 &&
-             data.excerpt is string &&
-             data.imageUrl is string &&
-             data.category is string &&
-             data.tags is list &&
-             data.status in ['draft', 'published', 'scheduled'] &&
-             data.authorId is string &&
-             isValidDateString(data.createdAt);
+             data.patientId is string &&
+             data.userId is string &&
+             isValidDateString(data.createdAt) &&
+             data.messages is list &&
+             data.theoreticalApproach is string;
+    }
+
+    function isValidClinicalReport(data) {
+      return hasRequiredFields(['id', 'patientId', 'userId', 'createdAt', 'status', 'summary', 'patterns', 'recommendations']) &&
+             data.id is string &&
+             data.patientId is string &&
+             data.userId is string &&
+             isValidDateString(data.createdAt) &&
+             data.status in ['evoluindo', 'estagnado', 'regredindo'] &&
+             data.summary is string &&
+             data.patterns is list &&
+             data.recommendations is list;
     }
 
     // ===============================================================
@@ -196,22 +204,24 @@ service cloud.firestore {
 
     match /clinical_reports/{reportId} {
       allow read: if (isDocOwner() && isAuthorized()) || isAdmin();
-      allow create: if (isNewDocOwner() && isAuthorized() && hasRequiredFields(['id', 'patientId', 'userId', 'createdAt'])) || isAdmin();
-      allow update: if (isDocOwner() && isAuthorized() && request.resource.data.userId == resource.data.userId) || isAdmin();
+      allow create: if (isNewDocOwner() && isAuthorized() && isValidClinicalReport(request.resource.data)) || isAdmin();
+      allow update: if (isDocOwner() && isAuthorized() && isValidClinicalReport(request.resource.data) && 
+                      request.resource.data.userId == resource.data.userId) || isAdmin();
       allow delete: if (isDocOwner() && isAuthorized()) || isAdmin();
     }
 
     match /clinical_chats/{chatId} {
       allow read: if (isDocOwner() && isAuthorized()) || isAdmin();
-      allow create: if (isNewDocOwner() && isAuthorized() && hasRequiredFields(['id', 'patientId', 'userId', 'createdAt'])) || isAdmin();
-      allow update: if (isDocOwner() && isAuthorized() && request.resource.data.userId == resource.data.userId) || isAdmin();
+      allow create: if (isNewDocOwner() && isAuthorized() && isValidClinicalChat(request.resource.data)) || isAdmin();
+      allow update: if (isDocOwner() && isAuthorized() && isValidClinicalChat(request.resource.data) && 
+                      request.resource.data.userId == resource.data.userId) || isAdmin();
       allow delete: if (isDocOwner() && isAuthorized()) || isAdmin();
     }
 
     match /registrations/{regId} {
       allow create: if hasRequiredFields(['id', 'name', 'phone', 'status', 'userId', 'createdAt']) &&
                     request.resource.data.status == 'pending';
-      allow read: if (isNewDocOwner() && isAuthorized()) || (resource.data.userId == request.auth.uid) || isAdmin();
+      allow read: if (isDocOwner() && isAuthorized()) || (resource.data.userId == request.auth.uid) || isAdmin();
       allow update: if (isAdmin() || (resource.data.userId == request.auth.uid && isAuthorized()));
       allow delete: if isAdmin() || (resource.data.userId == request.auth.uid && isAuthorized());
     }
