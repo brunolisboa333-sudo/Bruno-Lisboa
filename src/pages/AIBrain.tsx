@@ -77,9 +77,11 @@ export default function AIBrain() {
     setTempKeys(filled.slice(0, 9));
   }, [settings.geminiKeys]);
 
-  const getAIInstance = () => {
+  const getAIInstance = (modelName?: string) => {
     const keys = settings.geminiKeys?.filter(k => k.trim() !== '') || [];
-    // Pick a random key or fallback to env
+    
+    // Choose key. If it's a preview/pro image model, we SHOULD have a user key.
+    // If no user keys, we MUST use the system key and potentially a different model.
     const selectedKey = keys.length > 0 
       ? keys[Math.floor(Math.random() * keys.length)] 
       : process.env.GEMINI_API_KEY;
@@ -88,62 +90,94 @@ export default function AIBrain() {
       throw new Error('Nenhuma chave de API configurada.');
     }
     
-    return new GoogleGenAI({ apiKey: selectedKey });
+    return {
+      ai: new GoogleGenAI({ apiKey: selectedKey }),
+      isUserKey: keys.length > 0
+    };
   };
 
   const generateAIImage = async (prompt: string, aspectRatio: "1:1" | "3:4" | "4:3" | "9:16" | "16:9" = "16:9") => {
-    const ai = getAIInstance();
-    const model = "gemini-3.1-flash-image-preview"; // Upgraded for higher quality and cinematic results
+    const { ai, isUserKey } = getAIInstance();
     
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: { parts: [{ text: prompt }] },
-        config: {
-          imageConfig: {
-            aspectRatio,
-            imageSize: "1K" // High quality default
-          }
-        }
-      });
-
-      let imageUrl = '';
-      const candidate = response.candidates?.[0];
-      if (candidate?.content?.parts) {
-        for (const part of candidate.content.parts) {
-          if (part.inlineData) {
-            imageUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
-            break;
-          }
-        }
-      }
-      return imageUrl;
-    } catch (error) {
-      console.error('Erro na geração de imagem IA:', error);
-      // Fallback to simpler model if the preview one fails
+    // Using the more stable and widely available gemini-2.5-flash-image as primary
+    // to avoid potential access issues with preview models.
+    const primaryModel = "gemini-2.5-flash-image"; 
+    const highQualityModel = "gemini-3.1-flash-image-preview";
+    
+    const tryGenerate = async (modelName: string, isHighQuality: boolean) => {
       try {
-        const fallbackModel = "gemini-2.5-flash-image";
-        const fallbackResponse = await ai.models.generateContent({
-          model: fallbackModel,
+        // If we're using a preview model but don't have a user key, this is likely to fail
+        // per SKILL.md requirements.
+        if (modelName.includes('preview') && !isUserKey) {
+          console.warn(`Ignoring preview model ${modelName} as no user key is provided.`);
+          return null;
+        }
+
+        const response = await ai.models.generateContent({
+          model: modelName,
           contents: { parts: [{ text: prompt }] },
-          config: { imageConfig: { aspectRatio } }
+          config: {
+            imageConfig: isHighQuality ? {
+              aspectRatio,
+              imageSize: "1K"
+            } : {
+              aspectRatio
+            }
+          }
         });
-        
-        let fbImageUrl = '';
-        const fbCandidate = fallbackResponse.candidates?.[0];
-        if (fbCandidate?.content?.parts) {
-          for (const part of fbCandidate.content.parts) {
+
+        let imageUrl = '';
+        const candidate = response.candidates?.[0];
+        if (candidate?.content?.parts) {
+          for (const part of candidate.content.parts) {
             if (part.inlineData) {
-              fbImageUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+              imageUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
               break;
             }
           }
         }
-        return fbImageUrl;
-      } catch (fbError) {
-        throw fbError;
+        return imageUrl;
+      } catch (error) {
+        console.error(`Erro ao gerar imagem com ${modelName}:`, error);
+        return null;
+      }
+    };
+
+    // Attempt 1: High Quality Preview (ONLY if user keys are available)
+    let result = null;
+    if (isUserKey) {
+      result = await tryGenerate(highQualityModel, true);
+    }
+    
+    // Attempt 2: More Stable Model (Better for all keys)
+    if (!result) {
+      result = await tryGenerate(primaryModel, false);
+    }
+    
+    // Attempt 3: If still no result, try a very simple request to the stable model
+    if (!result) {
+      try {
+        const simpleResponse = await ai.models.generateContent({
+          model: primaryModel,
+          contents: { parts: [{ text: prompt.substring(0, 500) }] }, // Truncate if prompt was too complex
+          config: { imageConfig: { aspectRatio } }
+        });
+        
+        const candidate = simpleResponse.candidates?.[0];
+        if (candidate?.content?.parts) {
+          for (const part of candidate.content.parts) {
+            if (part.inlineData) {
+              result = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+              break;
+            }
+          }
+        }
+      } catch (finalError) {
+        console.error('Falha final na geração de imagem:', finalError);
       }
     }
+
+    return result || '';
   };
 
   const totalPages = Math.ceil(posts.length / POSTS_PER_PAGE);
@@ -162,7 +196,7 @@ export default function AIBrain() {
 
     setIsGenerating(true);
     try {
-      const ai = getAIInstance();
+      const { ai } = getAIInstance();
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Gere um post de blog profundamente humano, empático e acolhedor sobre o tema: "${topic}". 
@@ -270,7 +304,7 @@ export default function AIBrain() {
     
     setIsRegeneratingImage(true);
     try {
-      const ai = getAIInstance();
+      const { ai } = getAIInstance();
       const imagePromptResponse = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Create a new, even more visually impactful English prompt for an artistic image for a blog post titled: "${generatedContent.title}". 
@@ -303,7 +337,7 @@ export default function AIBrain() {
     
     setIsRegeneratingText(true);
     try {
-      const ai = getAIInstance();
+      const { ai } = getAIInstance();
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Gere uma nova versão de um post de blog sobre o tema: "${promptTopic}". 
@@ -454,7 +488,7 @@ export default function AIBrain() {
   const handleGenerateHeroImage = async () => {
     setIsGeneratingHero(true);
     try {
-      const ai = getAIInstance();
+      const { ai } = getAIInstance();
       const imagePromptResponse = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Create a professional high-end English prompt for a website hero image. 
