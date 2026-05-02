@@ -99,29 +99,23 @@ export default function AIBrain() {
   const generateAIImage = async (prompt: string, aspectRatio: "1:1" | "3:4" | "4:3" | "9:16" | "16:9" = "16:9") => {
     const { ai, isUserKey } = getAIInstance();
     
-    // Using the more stable and widely available gemini-2.5-flash-image as primary
-    // to avoid potential access issues with preview models.
-    const primaryModel = "gemini-2.5-flash-image"; 
-    const highQualityModel = "gemini-3.1-flash-image-preview";
+    // Model options
+    const models = [
+      { name: "gemini-3.1-flash-image-preview", highQuality: true, requireUserKey: true },
+      { name: "gemini-2.5-flash-image", highQuality: false, requireUserKey: false },
+      { name: "gemini-2.0-flash", highQuality: false, requireUserKey: false }
+    ];
     
-    const tryGenerate = async (modelName: string, isHighQuality: boolean) => {
+    const tryGenerate = async (modelName: string, isHighQuality: boolean, overridePrompt?: string) => {
       try {
-        // If we're using a preview model but don't have a user key, this is likely to fail
-        // per SKILL.md requirements.
-        if (modelName.includes('preview') && !isUserKey) {
-          console.warn(`Ignoring preview model ${modelName} as no user key is provided.`);
-          return null;
-        }
-
+        console.log(`Tentando gerar imagem com ${modelName}...`);
         const response = await ai.models.generateContent({
           model: modelName,
-          contents: { parts: [{ text: prompt }] },
+          contents: { parts: [{ text: overridePrompt || prompt }] },
           config: {
-            imageConfig: isHighQuality ? {
+            imageConfig: {
               aspectRatio,
-              imageSize: "1K"
-            } : {
-              aspectRatio
+              ...(isHighQuality ? { imageSize: "1K" } : {})
             }
           }
         });
@@ -136,45 +130,30 @@ export default function AIBrain() {
             }
           }
         }
+        
+        if (imageUrl) {
+          console.log(`Sucesso com ${modelName}`);
+        }
         return imageUrl;
-      } catch (error) {
-        console.error(`Erro ao gerar imagem com ${modelName}:`, error);
+      } catch (error: any) {
+        console.warn(`Falha com ${modelName}:`, error?.message || error);
         return null;
       }
     };
 
-    // Attempt 1: High Quality Preview (ONLY if user keys are available)
     let result = null;
-    if (isUserKey) {
-      result = await tryGenerate(highQualityModel, true);
+    for (const model of models) {
+      if (model.requireUserKey && !isUserKey) continue;
+      
+      result = await tryGenerate(model.name, model.highQuality);
+      if (result) break;
     }
     
-    // Attempt 2: More Stable Model (Better for all keys)
+    // Final desperate fallback if everything failed - try a very short prompt
     if (!result) {
-      result = await tryGenerate(primaryModel, false);
-    }
-    
-    // Attempt 3: If still no result, try a very simple request to the stable model
-    if (!result) {
-      try {
-        const simpleResponse = await ai.models.generateContent({
-          model: primaryModel,
-          contents: { parts: [{ text: prompt.substring(0, 500) }] }, // Truncate if prompt was too complex
-          config: { imageConfig: { aspectRatio } }
-        });
-        
-        const candidate = simpleResponse.candidates?.[0];
-        if (candidate?.content?.parts) {
-          for (const part of candidate.content.parts) {
-            if (part.inlineData) {
-              result = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
-              break;
-            }
-          }
-        }
-      } catch (finalError) {
-        console.error('Falha final na geração de imagem:', finalError);
-      }
+      console.log("Tentando fallback desesperado com prompt simplificado...");
+      const simplifiedPrompt = prompt.substring(0, 300).replace(/[^\w\s]/gi, '');
+      result = await tryGenerate("gemini-2.0-flash", false, simplifiedPrompt);
     }
 
     return result || '';
@@ -262,22 +241,21 @@ export default function AIBrain() {
 
       // Generate Image Prompt
       try {
+        const { ai } = getAIInstance();
         const imagePromptResponse = await ai.models.generateContent({
           model: "gemini-3-flash-preview",
           contents: `Create an extremely detailed professional English prompt for a visually impactful and relevant image for a blog post titled: "${data.title}". 
           
           Technical Requirements:
           - Style: Professional fine art photography with cinematic composition.
-          - Lighting: High-end film lighting (rembrandt lighting or soft natural light).
-          - Depth: Shallow depth of field with beautiful bokeh.
-          - Vibe: Deeply emotional, poetic, and sophisticated.
-          - Subject: Use symbolic elements of clinical psychology and neuropsychoanalysis. 
-          - Concept: Represent the human mind using abstract but clear metaphors (e.g., neural pathways as light, deep water, complex architecture of thought, mirrors, shadows and light).
-          - Avoid: Generic images of people crying, doctor's offices, or fake smiles.
-          - Goal: A masterpiece image that commands attention.`,
+          - Lighting: High-end film lighting.
+          - Vibe: Deeply emotional and sophisticated.
+          - Subject: Symbolic elements of clinical psychology.
+          
+          RETURN ONLY THE PROMPT TEXT, NOTHING ELSE.`,
         });
 
-        const imagePrompt = imagePromptResponse.text;
+        const imagePrompt = imagePromptResponse.text.trim();
         const imageUrl = await generateAIImage(imagePrompt, "16:9");
 
         if (imageUrl) {
@@ -308,10 +286,10 @@ export default function AIBrain() {
       const imagePromptResponse = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Create a new, even more visually impactful English prompt for an artistic image for a blog post titled: "${generatedContent.title}". 
-        Focus on powerful psychological metaphors and sophisticated cinematic photography. Be creative and avoid clichés.`,
+        Focus on powerful psychological metaphors and sophisticated cinematic photography. RETURN ONLY THE PROMPT TEXT.`,
       });
 
-      const imagePrompt = imagePromptResponse.text;
+      const imagePrompt = imagePromptResponse.text.trim();
       const imageUrl = await generateAIImage(imagePrompt, "16:9");
 
       if (imageUrl) {
@@ -493,17 +471,18 @@ export default function AIBrain() {
         model: "gemini-3-flash-preview",
         contents: `Create a professional high-end English prompt for a website hero image. 
         Theme: ${heroPrompt}. 
-        Style: Masterpiece fine art photography, cinematic wide-angle shot, extremely high detail. 
         Aesthetic: Therapeutic, calm, premium, sophisticated, psychological depth. 
-        Format: Horizontal 16:9 wide shot.`,
+        RETURN ONLY THE PROMPT TEXT, NOTHING ELSE.`,
       });
 
-      const imagePrompt = imagePromptResponse.text;
+      const imagePrompt = imagePromptResponse.text.trim();
       const imageUrl = await generateAIImage(imagePrompt, "16:9");
 
       if (imageUrl) {
         await saveSettings({ ...settings, heroImageUrl: imageUrl });
         toast.success('Imagem de destaque do site atualizada!');
+      } else {
+        toast.error('A IA processou o pedido, mas não conseguiu gerar a imagem final. Tente um tema diferente or verifique suas chaves.');
       }
     } catch (error) {
       console.error('Erro ao gerar imagem do site:', error);
