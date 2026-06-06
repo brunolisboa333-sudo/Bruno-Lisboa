@@ -110,6 +110,24 @@ export interface Expense {
   userId: string;
 }
 
+export interface Course {
+  id: string;
+  title: string;
+  description: string;
+  price: string;
+  linkUrl: string;
+  imageUrl?: string;
+}
+
+export interface Testimonial {
+  id: string;
+  patientName: string;
+  content: string;
+  rating: number; // 1-5
+  date: string;
+  approved: boolean;
+}
+
 export interface ClinicSettings {
   clinicName: string;
   professionalName: string;
@@ -121,6 +139,8 @@ export interface ClinicSettings {
   bio?: string;
   heroImageUrl?: string;
   geminiKeys?: string[];
+  courses?: Course[];
+  testimonials?: Testimonial[];
 }
 
 export interface BlogPost {

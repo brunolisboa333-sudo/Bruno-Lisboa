@@ -97,66 +97,91 @@ export default function AIBrain() {
   };
 
   const generateAIImage = async (prompt: string, aspectRatio: "1:1" | "3:4" | "4:3" | "9:16" | "16:9" = "16:9") => {
-    const { ai, isUserKey } = getAIInstance();
+    const userKeys = settings.geminiKeys?.filter(k => k.trim() !== '') || [];
+    const allKeys = userKeys.length > 0 ? userKeys : [process.env.GEMINI_API_KEY].filter(Boolean) as string[];
     
-    // Model options
+    if (allKeys.length === 0) {
+      toast.error('Nenhuma chave de API disponível para gerar imagem.');
+      return '';
+    }
+
+    // Model options - prioritized
     const models = [
-      { name: "gemini-3.1-flash-image-preview", highQuality: true, requireUserKey: true },
-      { name: "gemini-2.5-flash-image", highQuality: false, requireUserKey: false },
-      { name: "gemini-2.0-flash", highQuality: false, requireUserKey: false }
+      { name: "gemini-2.5-flash-image", highQuality: false },
+      { name: "gemini-3.1-flash-image-preview", highQuality: true },
+      { name: "gemini-3-pro-image-preview", highQuality: true },
     ];
     
-    const tryGenerate = async (modelName: string, isHighQuality: boolean, overridePrompt?: string) => {
-      try {
-        console.log(`Tentando gerar imagem com ${modelName}...`);
-        const response = await ai.models.generateContent({
-          model: modelName,
-          contents: { parts: [{ text: overridePrompt || prompt }] },
-          config: {
-            imageConfig: {
-              aspectRatio,
-              ...(isHighQuality ? { imageSize: "1K" } : {})
-            }
-          }
-        });
-
-        let imageUrl = '';
-        const candidate = response.candidates?.[0];
-        if (candidate?.content?.parts) {
-          for (const part of candidate.content.parts) {
-            if (part.inlineData) {
-              imageUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
-              break;
-            }
-          }
-        }
-        
-        if (imageUrl) {
-          console.log(`Sucesso com ${modelName}`);
-        }
-        return imageUrl;
-      } catch (error: any) {
-        console.warn(`Falha com ${modelName}:`, error?.message || error);
-        return null;
-      }
-    };
-
     let result = null;
+
+    // Try each model
     for (const model of models) {
-      if (model.requireUserKey && !isUserKey) continue;
+      // For each model, try at most 2 different random keys if we have them
+      const keysToTry = allKeys.length > 1 
+        ? [allKeys[Math.floor(Math.random() * allKeys.length)], allKeys[Math.floor(Math.random() * allKeys.length)]]
+        : [allKeys[0]];
       
-      result = await tryGenerate(model.name, model.highQuality);
-      if (result) break;
+      // Remove duplicates
+      const uniqueKeys = Array.from(new Set(keysToTry));
+
+      for (const key of uniqueKeys) {
+        try {
+          const ai = new GoogleGenAI({ apiKey: key });
+          console.log(`[AI Image] Tentando ${model.name} com chave ${key.substring(0, 8)}...`);
+          
+          const response = await ai.models.generateContent({
+            model: model.name,
+            contents: { parts: [{ text: prompt }] },
+            config: {
+              imageConfig: {
+                aspectRatio,
+                ...(model.highQuality ? { imageSize: "1K" } : {})
+              }
+            }
+          });
+
+          const candidate = response.candidates?.[0];
+          if (candidate?.content?.parts) {
+            for (const part of candidate.content.parts) {
+              if (part.inlineData) {
+                result = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+                console.log(`[AI Image] SUCESSO com ${model.name}`);
+                return result;
+              }
+            }
+          }
+          console.warn(`[AI Image] ${model.name} sem dados de imagem.`);
+        } catch (error: any) {
+          const errorMsg = error?.message || String(error);
+          console.warn(`[AI Image] FALHA em ${model.name}:`, errorMsg);
+        }
+      }
     }
     
-    // Final desperate fallback if everything failed - try a very short prompt
-    if (!result) {
-      console.log("Tentando fallback desesperado com prompt simplificado...");
-      const simplifiedPrompt = prompt.substring(0, 300).replace(/[^\w\s]/gi, '');
-      result = await tryGenerate("gemini-2.0-flash", false, simplifiedPrompt);
+    // Final desperate fallback with simplified prompt and gemini-2.0-flash
+    console.log("[AI Image] Tentando fallback desesperado...");
+    const simplifiedPrompt = prompt.substring(0, 150).replace(/[^\w\s]/gi, '');
+    const fallbackKey = allKeys[0];
+    try {
+      const ai = new GoogleGenAI({ apiKey: fallbackKey });
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: { parts: [{ text: simplifiedPrompt }] },
+        config: { imageConfig: { aspectRatio } }
+      });
+      const parts = response.candidates?.[0]?.content?.parts;
+      if (parts) {
+        for (const part of parts) {
+          if (part.inlineData) {
+            return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[AI Image] Fallback final falhou:", e);
     }
 
-    return result || '';
+    return '';
   };
 
   const totalPages = Math.ceil(posts.length / POSTS_PER_PAGE);

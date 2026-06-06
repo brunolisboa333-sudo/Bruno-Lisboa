@@ -110,17 +110,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 }
 
 const NAV_ITEMS = [
-  { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { path: '/agenda', icon: Calendar, label: 'Agenda', permission: 'view_agenda' },
-  { path: '/confirmations', icon: MessageCircle, label: 'Pendências', permission: 'view_confirmations' },
-  { path: '/patients', icon: Users, label: 'Pacientes', permission: 'view_patients' },
-  { path: '/finance', icon: Wallet, label: 'Financeiro Inteligente', permission: 'view_finance' },
-  { path: '/records', icon: FileText, label: 'Prontuários', permission: 'view_records' },
-  { path: '/clinical-ai', icon: Sparkles, label: 'IA Clínica', permission: 'view_records' },
-  { path: '/registration-requests', icon: UserPlus, label: 'Pré-Cadastros', permission: 'view_patients' },
-  { path: '/aibrain', icon: Brain, label: 'Cérebro de IA', permission: 'admin' },
-  { path: '/users', icon: ShieldCheck, label: 'Usuários', permission: 'admin' },
-  { path: '/blog', icon: BookOpen, label: 'Ver Blog' },
+  { path: '/dashboard', icon: LayoutDashboard, label: 'Painel Admin' },
 ];
 
 function Sidebar({ isOpen, setIsOpen, darkMode, setDarkMode }: { 
@@ -134,11 +124,7 @@ function Sidebar({ isOpen, setIsOpen, darkMode, setDarkMode }: {
 
   const { settings, logout, userProfile, hasPermission } = useStorage();
 
-  const navItems = NAV_ITEMS.filter(item => {
-    if (!item.permission) return true;
-    if (item.permission === 'admin') return userProfile?.role === 'admin';
-    return hasPermission(item.permission);
-  });
+  const navItems = NAV_ITEMS;
 
   const handleLogout = () => {
     logout();

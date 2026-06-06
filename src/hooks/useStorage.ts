@@ -85,15 +85,17 @@ export function useStorage() {
   const [records, setRecords] = useState<SessionRecord[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [settings, setSettings] = useState<ClinicSettings>({
-    clinicName: 'Clínica de Psicanálise & Neuropsicanálise',
+    clinicName: 'Clínica de Psicanálise',
     professionalName: 'Bruno Lisboa',
     professionalInitials: 'BL',
-    specialty: 'Neuropsicanálise & Psicanálise Clínica',
+    specialty: 'Psicanálise Clínica & Neuropsicanálise',
     defaultSessionValue: 150,
     whatsapp: '31 999215840',
     email: 'brunolisboapsi@gmail.com',
     heroImageUrl: '',
-    geminiKeys: []
+    geminiKeys: [],
+    courses: [],
+    testimonials: []
   });
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -112,7 +114,12 @@ export function useStorage() {
     const settingsDoc = doc(db, 'settings', 'clinic_settings');
     const unsubscribeSettings = onSnapshot(settingsDoc, (snapshot) => {
       if (snapshot.exists()) {
-        setSettings(snapshot.data() as ClinicSettings);
+        const data = snapshot.data() as ClinicSettings;
+        setSettings({
+          ...data,
+          courses: data.courses || [],
+          testimonials: data.testimonials || []
+        });
       }
     }, (error) => {
       // If it fails (e.g. doesn't exist yet), we just keep the defaults
@@ -252,7 +259,9 @@ export function useStorage() {
       setClinicalChats(snapshot.docs.map(doc => doc.data() as ClinicalChatSession));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'clinical_chats'));
 
-    const qRegistrations = query(collection(db, 'registrations'), where('userId', '==', userId));
+    const qRegistrations = userProfile.role === 'admin'
+      ? query(collection(db, 'registrations'))
+      : query(collection(db, 'registrations'), where('userId', '==', userId));
     const unsubscribeRegistrations = onSnapshot(qRegistrations, (snapshot) => {
       setRegistrations(snapshot.docs.map(doc => doc.data() as PublicRegistration));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'registrations'));
