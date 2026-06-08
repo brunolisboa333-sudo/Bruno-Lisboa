@@ -23,6 +23,8 @@ import {
 import { useStorage } from '../hooks/useStorage';
 import { toast } from 'sonner';
 import { Course, Testimonial, PublicRegistration } from '../types';
+// @ts-ignore
+import brunoProfileImg from '../assets/images/bruno_profile_1780776380192.png';
 
 export default function LandingPage() {
   const { settings, addPublicRegistration, saveSettings } = useStorage();
@@ -292,7 +294,7 @@ export default function LandingPage() {
           >
             <div className="aspect-[4/5] rounded-[2.5rem] overflow-hidden shadow-2xl relative border-4 border-white">
               <img 
-                src={settings.heroImageUrl || "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=800&auto=format&fit=crop"} 
+                src={settings.heroImageUrl || brunoProfileImg} 
                 alt={settings.professionalName || 'Bruno Lisboa'} 
                 className="w-full h-full object-cover bg-slate-100"
                 referrerPolicy="no-referrer"

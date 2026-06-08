@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Users2, 
@@ -51,6 +51,27 @@ export default function Dashboard() {
     testimonials: settings.testimonials || []
   });
 
+  // Keep profileForm in sync with loaded settings
+  useEffect(() => {
+    if (settings) {
+      setProfileForm(prev => ({
+        ...prev,
+        clinicName: settings.clinicName || '',
+        professionalName: settings.professionalName || '',
+        professionalInitials: settings.professionalInitials || '',
+        specialty: settings.specialty || '',
+        defaultSessionValue: settings.defaultSessionValue || 150,
+        whatsapp: settings.whatsapp || '',
+        email: settings.email || '',
+        bio: settings.bio || '',
+        heroImageUrl: settings.heroImageUrl || '',
+        geminiKeys: settings.geminiKeys || [],
+        courses: settings.courses || [],
+        testimonials: settings.testimonials || []
+      }));
+    }
+  }, [settings]);
+
   // State for Course creation / editing
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
@@ -77,7 +98,9 @@ export default function Dashboard() {
     try {
       const mergedSettings: ClinicSettings = {
         ...settings,
-        ...profileForm
+        ...profileForm,
+        courses: settings.courses || [],
+        testimonials: settings.testimonials || []
       };
       await saveSettings(mergedSettings);
       toast.success('Perfil atualizado com sucesso!');

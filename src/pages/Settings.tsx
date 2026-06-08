@@ -30,7 +30,9 @@ export default function Settings() {
       email: formData.get('email') as string,
       bio: formData.get('bio') as string,
       heroImageUrl: formData.get('heroImageUrl') as string,
-      geminiKeys: settings.geminiKeys
+      geminiKeys: settings.geminiKeys,
+      courses: settings.courses || [],
+      testimonials: settings.testimonials || []
     });
     
     toast.success('Configurações salvas com sucesso');
